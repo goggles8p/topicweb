@@ -525,6 +525,19 @@ function parseAI(text){
   }
   return JSON.parse(whole); // re-throw the original error if salvage failed
 }
+// quality guards — reject weak-model junk so we fall over to a better model
+function badText(s){
+  s=String(s||'');
+  const nonLatin=(s.match(/[　-鿿가-힯฀-๿؀-ۿЀ-ӿ]/g)||[]).length;
+  return nonLatin>=4;   // a real chunk of CJK/Hangul/Thai/Arabic/Cyrillic = garbled output
+}
+function placeholderQ(q){
+  const t=String(q||'').trim();
+  return t.length<8 || /^(q|question)\s*\d+$/i.test(t) || /^(idea|item|topic|sub-?topic)\s*\d+$/i.test(t);
+}
+function goodQuestions(arr){
+  return Array.isArray(arr) && arr.length>=2 && !arr.some(q=>placeholderQ(q)||badText(q));
+}
 
 /* ---------- GRAPH ENGINE (self-contained force layout on canvas) ---------- */
 const cv=$('#cv'), ctx=cv.getContext('2d');
@@ -957,22 +970,25 @@ async function fetchDetail(c){
   const key=getKey();
   const node=nodes.find(n=>n.data===c);
   const parentTopic = (node&&node.parent) ? ((NodeById(node.parent)||{}).label||'') : '';
-  const prompt='You are a content strategist. For ONE content topic that BOTH "'+A+'" (Industry A) and "'+B+'" (Industry B) can make content about, return ONLY JSON (no prose, no code fences).\n'
+  const prompt='You are a content strategist. Write EVERYTHING in English. For ONE content topic that BOTH "'+A+'" (Industry A) and "'+B+'" (Industry B) can make content about, return ONLY JSON (no prose, no code fences).\n'
     +'Topic: "'+(c.topic||'')+'"'+(parentTopic?(' — a more specific sub-topic of "'+parentTopic+'"'):'')+'.\n'
-    +'{"context":"2-3 sentences to brief a writer (the trend, why these two overlap, what is at stake)","whyA":"1-2 sentences why it works for '+A+'","whyB":"1-2 sentences why it works for '+B+'","trendSignal":"the current trend making it timely, or evergreen","contentIdeas":["idea 1","idea 2","idea 3"],"questionsAB":["q1","q2","q3"],"questionsBA":["q1","q2","q3"]}\n'
-    +'questionsAB = exactly 3 questions '+A+' would ask '+B+'. questionsBA = exactly 3 questions '+B+' would ask '+A+'. Specific, concrete, never generic.';
+    +'Shape: {"context":"...","whyA":"...","whyB":"...","trendSignal":"...","contentIdeas":["...","...","..."],"questionsAB":["...","...","..."],"questionsBA":["...","...","..."]}\n'
+    +'context = 2-3 sentences to brief a writer. whyA = 1-2 sentences why it works for '+A+'. whyB = 1-2 sentences why it works for '+B+'.\n'
+    +'questionsAB = exactly 3 REAL, full questions '+A+' would ask '+B+' about this topic (end each with "?"). questionsBA = exactly 3 REAL questions '+B+' would ask '+A+'.\n'
+    +'CRITICAL: write actual sentences/questions — do NOT output literal placeholders like "q1", "question 1", "idea 1". English only.';
   const s=getStats();
   const FREEONLY=freeOnlyOn();
   const ordered=[]; const add=m=>{ if(m && ordered.indexOf(m)<0 && !blacklisted(m,s) && (!FREEONLY||m.endsWith(':free'))) ordered.push(m); };
   add((LS.get('tw_defaultmodel')||'').trim());
   if(!FREEONLY) (PAID_MODELS.length?PAID_MODELS:PAID_FALLBACK).forEach(add);   // free-only → no paid detail calls
-  weightedOrder((FREE_MODELS.length?FREE_MODELS:FREE_FALLBACK).filter(m=>!blacklisted(m,s)),s).slice(0, FREEONLY?6:3).forEach(add);
+  weightedOrder((FREE_MODELS.length?FREE_MODELS:FREE_FALLBACK).filter(m=>!blacklisted(m,s)),s).slice(0, FREEONLY?8:3).forEach(add);
   for(const m of ordered){
     try{
       log('info','detail attempt',{model:m,topic:c.topic});
       const d=parseAI(await callAI(m,key,prompt,25000));
-      if(d && ((d.questionsAB&&d.questionsAB.length)||(d.questionsBA&&d.questionsBA.length)||d.context)){ recordSuccess(m); log('info','detail ok',{model:m}); return d; }
-      throw new Error('no detail fields');
+      // require REAL questions both ways (not placeholders, not garbled) — else try another model
+      if(d && goodQuestions(d.questionsAB) && goodQuestions(d.questionsBA) && !badText(d.context)){ recordSuccess(m); log('info','detail ok',{model:m}); return d; }
+      throw new Error('INCOMPLETE: placeholder/garbled/missing questions');
     }catch(e){ log('warn','detail attempt failed',{model:m,error:e.message}); }
   }
   return null;
@@ -1054,7 +1070,7 @@ function keyTopicsPrompt(A,B,ctxA,ctxB,n,trendsA,trendsB){
   return `You are a content strategist. Give EXACTLY ${n} KEY content topics that BOTH "${A}" (Industry A) and "${B}" (Industry B) can authentically make content about — the biggest, most useful overlaps between them.
 ${ctxA?'A context: '+ctxA+'\n':''}${ctxB?'B context: '+ctxB+'\n':''}Recent real chatter for grounding:\n[A]\n${tA}\n[B]\n${tB}
 Return ONLY JSON (no prose, no code fences): {"topics":[{"topic":"2-5 word label","lean":0-100,"strength":1-10,"talkingPoint":"one punchy sentence"}]}
-Exactly ${n} topics. lean: 0 = almost entirely ${A}, 100 = almost entirely ${B}, 50 = equal — vary it. strength 1-10. Be specific and concrete.`;
+Exactly ${n} topics. lean: 0 = almost entirely ${A}, 100 = almost entirely ${B}, 50 = equal — vary it. strength 1-10. Write EVERYTHING in English. Use real labels/sentences, never placeholders like "topic 1". Be specific and concrete.`;
 }
 // prompt to expand a layer: for EACH parent, exactly n deeper sub-topics of THAT parent
 function expandPrompt(A,B,n,parents){
@@ -1064,7 +1080,7 @@ For EACH parent, give EXACTLY ${n} sub-topics that go DEEPER and MORE SPECIFIC i
 Parents:
 ${list}
 Return ONLY JSON (no prose, no code fences): {"children":[{"parent":"<the id shown above>","topic":"2-5 word label","lean":0-100,"strength":1-10,"talkingPoint":"one sentence"}]}
-EXACTLY ${n} children per parent (${parents.length*n} total). "parent" must be one of the ids shown. Each child must clearly be a sub-facet of its parent (e.g. parent "Skating" → "Skate maintenance", "Trick progression", "Skate fashion"). Be specific.`;
+EXACTLY ${n} children per parent (${parents.length*n} total). "parent" must be one of the ids shown. Each child must clearly be a sub-facet of its parent (e.g. parent "Skating" → "Skate maintenance", "Trick progression", "Skate fashion"). Write EVERYTHING in English. Use real labels, never placeholders like "topic 1". Be specific.`;
 }
 
 async function generate(){
@@ -1095,7 +1111,7 @@ async function generate(){
 
     // ---- Layer 1: the KEY topics ----
     const l1 = await aiJSON(keyTopicsPrompt(A,B,$('#ctxA').value,$('#ctxB').value,n,tA,tB), key,
-      {caption:'Finding the key topics…', items:n, posts, validate:p=>Array.isArray(p.topics)&&p.topics.length>=n});
+      {caption:'Finding the key topics…', items:n, posts, validate:p=>Array.isArray(p.topics)&&p.topics.length>=n&&!p.topics.some(t=>!t.topic||badText(t.topic)||badText(t.talkingPoint))});
     if(!l1) throw new Error(busyMsg);
     let prev = l1.topics.slice(0,n).map((t,i)=>({id:'k'+i, layer:1, parent:null, topic:t.topic, lean:t.lean, strength:t.strength, talkingPoint:t.talkingPoint}));
     const gnodes = prev.slice();
@@ -1104,7 +1120,7 @@ async function generate(){
     for(let L=2; L<=layers; L++){
       const exp = await aiJSON(expandPrompt(A,B,n,prev), key,
         {caption:'Branching layer '+L+' of '+layers+'…', items:prev.length*n, posts,
-         validate:p=>Array.isArray(p.children)&&p.children.length>=Math.ceil(prev.length*n*0.5)});
+         validate:p=>Array.isArray(p.children)&&p.children.length>=Math.ceil(prev.length*n*0.5)&&!p.children.some(c=>!c.topic||badText(c.topic))});
       if(!exp) throw new Error(busyMsg);
       const byParent={}; (exp.children||[]).forEach(c=>{ const pid=String(c.parent||''); (byParent[pid]=byParent[pid]||[]).push(c); });
       const next=[];
