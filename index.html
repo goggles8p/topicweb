@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Topic Web — Cross-Industry Talking Points</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --line:#2a323d;
+    --text:#e6edf3; --muted:#8b96a5; --accentA:#3b82f6; --accentB:#22c55e;
+    --topic:#f59e0b; --topic2:#fb923c; --danger:#ef4444;
+    --indA:#ef4444; --indB:#3b82f6;   /* Industry A = red, Industry B = blue */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(--text);
+    font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  #app{display:flex;flex-direction:column;height:100vh;width:100%;overflow:hidden}
+  header{display:flex;align-items:center;gap:14px;padding:10px 16px;
+    background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.2px}
+  header .tag{font-size:11px;color:var(--muted);border:1px solid var(--line);
+    padding:2px 8px;border-radius:999px}
+  .grow{flex:1}
+  .ctrl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  input,select,button{font-family:inherit}
+  input[type=text],input[type=password],input[type=number],select{
+    background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:7px 10px;font-size:13px;outline:none}
+  input[type=text]:focus,input[type=password]:focus,input[type=number]:focus,select:focus{
+    border-color:var(--accentA)}
+  input[type=number]{width:64px}
+  button{background:var(--accentA);color:#fff;border:0;border-radius:8px;
+    padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+  button:hover{filter:brightness(1.08)}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+  button.ghost:hover{background:var(--panel2)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  main{flex:1;display:grid;grid-template-columns:minmax(170px,210px) 1fr minmax(170px,210px);min-height:0;overflow:hidden}
+  .side{background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:10px}
+  .side.left{border-right:1px solid var(--line)}
+  .side.right{border-left:1px solid var(--line)}
+  .side label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+  .side .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
+  .side textarea{background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:8px;font-size:12px;resize:vertical;min-height:60px;outline:none}
+  .center{position:relative;min-width:0;overflow:hidden;background:radial-gradient(circle at 50% 40%,#131a24,#0e1116)}
+  canvas{display:block;position:absolute;left:0;top:0;width:100%;height:100%}
+  .side.right input,.side.right textarea{outline:2px solid transparent}
+  #status{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    text-align:center;color:var(--muted);font-size:14px;pointer-events:none;max-width:70%}
+  #status .big{font-size:15px;color:var(--text);margin-bottom:6px}
+  .legend{position:absolute;bottom:12px;left:12px;font-size:11px;color:var(--muted);
+    background:rgba(20,25,33,.7);padding:8px 10px;border-radius:8px;line-height:1.7}
+  .hint{font-size:11px;color:var(--muted);line-height:1.5}
+  /* detail drawer */
+  #drawer{position:absolute;top:0;right:0;height:100%;width:380px;max-width:90%;background:var(--panel);
+    border-left:1px solid var(--line);transform:translateX(100%);transition:transform .25s;
+    overflow-y:auto;overflow-x:hidden;padding:18px 20px 28px;z-index:5;box-sizing:border-box}
+  #drawer.open{transform:translateX(0)}
+  #drawer *{overflow-wrap:break-word;word-break:break-word}
+  #drawer h2{font-size:15px;margin:0 30px 6px 0;line-height:1.3}
+  #drawer .close{position:absolute;top:12px;right:12px;background:transparent;border:0;
+    color:var(--muted);font-size:20px;cursor:pointer;padding:0;width:26px}
+  #drawer .meter{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;margin:8px 0 14px}
+  #drawer .meter > i{display:block;height:100%;background:linear-gradient(90deg,var(--topic),var(--topic2))}
+  #drawer .block{margin:14px 0}
+  #drawer .block .h{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:5px}
+  #drawer .block .b{font-size:13px;line-height:1.6;color:var(--text)}
+  #drawer ul{margin:6px 0 0;padding-left:18px}
+  #drawer li{font-size:13px;line-height:1.5;margin-bottom:4px}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;
+    background:var(--panel2);border:1px solid var(--line);color:var(--muted);margin-right:6px}
+  .src a{color:var(--accentA);text-decoration:none;font-size:12px}
+  .src a:hover{text-decoration:underline}
+  /* settings popover */
+  #settings{position:absolute;top:54px;right:16px;width:320px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:12px;padding:16px;z-index:20;display:none;
+    box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  #settings.open{display:block}
+  #settings label{display:block;font-size:11px;color:var(--muted);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.5px}
+  #settings input,#settings select{width:100%}
+  .row{display:flex;gap:8px;align-items:center}
+  .err{color:var(--danger);font-size:12px;margin-top:8px;white-space:pre-wrap}
+  a.link{color:var(--accentA)}
+  /* log panel */
+  #logPanel{position:absolute;top:54px;right:16px;width:560px;max-width:92vw;height:70vh;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;z-index:30;display:none;
+    flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+  #logPanel.open{display:flex}
+  #modelsPanel{position:absolute;top:54px;right:16px;width:520px;max-width:92vw;height:70vh;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;z-index:30;display:none;
+    flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+  #modelsPanel.open{display:flex}
+  #modelsBody{flex:1;overflow:auto;padding:10px 14px;font-size:12px}
+  #modelsBody table{width:100%;border-collapse:collapse}
+  #modelsBody th,#modelsBody td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  #modelsBody th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  #modelsBody td.num{text-align:right;font-variant-numeric:tabular-nums}
+  #modelsBody .mname{font-family:ui-monospace,Consolas,monospace;font-size:11px}
+  #modelsBody .bl{color:var(--danger)} #modelsBody .ok{color:var(--accentB)}
+  #logPanel .logHead{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 14px;border-bottom:1px solid var(--line)}
+  #logPanel .logHead .grp{display:flex;gap:6px}
+  #logPanel button{padding:5px 10px;font-size:12px}
+  #logBody{flex:1;margin:0;padding:12px 14px;overflow:auto;font-family:ui-monospace,Consolas,monospace;
+    font-size:11.5px;line-height:1.5;color:var(--text);white-space:pre-wrap;word-break:break-word}
+  #logBody .e{color:var(--danger)} #logBody .w{color:var(--topic)} #logBody .i{color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>🕸️ Topic Web</h1>
+    <span class="tag">cross-industry talking points</span>
+    <div class="grow"></div>
+    <div class="ctrl">topics
+      <input type="number" id="numConns" min="3" max="20" value="6">
+    </div>
+    <div class="ctrl">layers
+      <input type="number" id="numLayers" min="1" max="5" value="1" title="depth: each topic branches into 'topics' sub-topics per layer (exponential)">
+    </div>
+    <span class="ctrl" id="countHint" style="opacity:.65;display:inline-block;min-width:74px"></span>
+    <button id="genBtn">⚡ Generate</button>
+    <button class="ghost" id="sampleBtn">Sample</button>
+    <button class="ghost" id="fitBtn" title="zoom to fit">⤢ Fit</button>
+    <button class="ghost" id="modelsBtn">🏆 Models</button>
+    <button class="ghost" id="logBtn">📋 Log</button>
+    <button class="ghost" id="setBtn">⚙</button>
+  </header>
+
+  <main>
+    <div class="side left">
+      <label><span class="dot" style="background:var(--indA)"></span>Industry A</label>
+      <input type="text" id="indA" placeholder="e.g. craft coffee roasters">
+      <label>extra context (optional)</label>
+      <textarea id="ctxA" placeholder="audience, goals, tone…"></textarea>
+      <div class="hint">Type any industry — free-form, not a dropdown.</div>
+    </div>
+
+    <div class="center">
+      <canvas id="cv"></canvas>
+      <div id="status">
+        <div class="big">Enter two industries and hit Generate</div>
+        <div>The center builds a web of topics both sides can talk about.<br>
+        Click any node for the full talking point. Drag to rearrange.</div>
+      </div>
+      <div class="legend">
+        leans → &nbsp;
+        <span class="dot" style="background:hsl(0,72%,50%)"></span>A
+        <span class="dot" style="background:hsl(300,60%,52%)"></span>both
+        <span class="dot" style="background:hsl(220,72%,55%)"></span>B
+        &nbsp;·&nbsp; strength →
+        <span class="dot" style="background:hsl(300,55%,72%)"></span>low
+        <span class="dot" style="background:hsl(300,60%,38%)"></span>high
+        <br><span style="opacity:.65">position &amp; color show which side a topic favors; darker &amp; bigger = stronger</span>
+      </div>
+      <div id="drawer">
+        <button class="close" id="drawerClose">×</button>
+        <div id="drawerBody"></div>
+      </div>
+    </div>
+
+    <div class="side right">
+      <label><span class="dot" style="background:var(--indB)"></span>Industry B</label>
+      <input type="text" id="indB" placeholder="e.g. home fitness studios">
+      <label>extra context (optional)</label>
+      <textarea id="ctxB" placeholder="audience, goals, tone…"></textarea>
+      <div class="hint">Free data is pulled from Hacker News + Wikipedia to ground the AI.</div>
+    </div>
+  </main>
+</div>
+
+<div id="settings">
+  <div style="font-weight:600;font-size:13px;margin-bottom:4px">Settings</div>
+  <div class="hint">Paste a <b>free</b> OpenRouter key to generate (stored only in your browser). Get one free — no card — at <a class="link" href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>. No key? Hit <b>Sample</b> to explore.</div>
+  <label>OpenRouter API key</label>
+  <input type="password" id="apiKey" placeholder="sk-or-v1-…">
+  <label>Default model</label>
+  <select id="defaultModel"><option value="">Auto — smart pick (recommended)</option></select>
+  <div class="hint" style="margin-top:4px">Auto = it weighted-randomly picks proven models. Choose a specific one to always try it first.</div>
+  <div class="row" style="margin-top:10px">
+    <label style="margin:0"><input type="checkbox" id="freeOnly" style="width:auto"> <b>Free models only — never spend credits</b></label>
+  </div>
+  <div class="hint" style="margin-top:2px">On = uses only OpenRouter's free models for everything (tree + card detail). $0 guaranteed, but the free pool is busier so it can be slower or need a retry.</div>
+  <div class="row" style="margin-top:10px">
+    <label style="margin:0"><input type="checkbox" id="useFree" checked style="width:auto"> pull free trend data (HN + Wikipedia)</label>
+  </div>
+  <div class="row" style="margin-top:14px;justify-content:flex-end">
+    <button class="ghost" id="setClose">Close</button>
+    <button id="setSave">Save</button>
+  </div>
+</div>
+
+<div id="modelsPanel">
+  <div class="logHead">
+    <b>🏆 Model scoreboard</b>
+    <div class="grp">
+      <button class="ghost" id="modelsReset">Reset scores</button>
+      <button class="ghost" id="modelsClose">Close</button>
+    </div>
+  </div>
+  <div id="modelsBody"></div>
+</div>
+
+<div id="logPanel">
+  <div class="logHead">
+    <b>📋 Activity log</b>
+    <div class="grp">
+      <button class="ghost" id="logCopy">Copy</button>
+      <button class="ghost" id="logDownload">Download</button>
+      <button class="ghost" id="logClear">Clear</button>
+      <button class="ghost" id="logClose">Close</button>
+    </div>
+  </div>
+  <pre id="logBody"></pre>
+</div>
+
+<script>
+/* ---------- tiny helpers ---------- */
+const $ = s => document.querySelector(s);
+const LS = { get:k=>localStorage.getItem(k), set:(k,v)=>localStorage.setItem(k,v) };
+const esc = s => (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+/* built-in free key (override via ⚙). Replace if it ever gets rate-limited. */
+// Add a free OpenRouter key in Settings (⚙). Get one free at https://openrouter.ai/keys
+const DEFAULT_KEY = '';
+function getKey(){ return (($('#apiKey').value||'').trim()) || (LS.get('tw_key')||'').trim() || DEFAULT_KEY; }
+
+/* ---------- LOGGING ---------- */
+const LOGKEY='tw_log';
+let LOGS=[]; try{ LOGS=JSON.parse(LS.get(LOGKEY)||'[]')||[]; }catch(_){ LOGS=[]; }
+function stamp(){ return new Date().toISOString().replace('T',' ').slice(0,23); }
+function log(level,msg,data){
+  const e={t:stamp(),level,msg};
+  if(data!==undefined){
+    try{ e.data = (typeof data==='string')?data:JSON.stringify(data); }catch(_){ e.data=String(data); }
+    if(e.data && e.data.length>3000) e.data=e.data.slice(0,3000)+'…[truncated]';
+  }
+  LOGS.push(e);
+  if(LOGS.length>800) LOGS=LOGS.slice(-800);
+  try{ LS.set(LOGKEY, JSON.stringify(LOGS)); }catch(_){}
+  try{ (console[level]||console.log).call(console,'['+e.t+'] '+msg, data!==undefined?data:''); }catch(_){}
+  if($('#logPanel') && $('#logPanel').classList.contains('open')) renderLog();
+}
+function fmtLog(){
+  if(!LOGS.length) return '(log is empty — run a Generate to populate it)';
+  return LOGS.map(e=>'['+e.t+'] '+e.level.toUpperCase()+' — '+e.msg+(e.data?'\n    '+e.data:'')).join('\n');
+}
+function renderLog(){
+  const cls={error:'e',warn:'w',info:'i'};
+  $('#logBody').innerHTML = LOGS.length
+    ? LOGS.map(e=>'<span class="'+(cls[e.level]||'i')+'">['+e.t+'] '+e.level.toUpperCase()+'</span> — '+esc(e.msg)+(e.data?'\n    '+esc(e.data):'')).join('\n')
+    : '(log is empty — run a Generate to populate it)';
+  const b=$('#logBody'); b.scrollTop=b.scrollHeight;
+}
+log('info','app loaded', {url:location.href, ua:navigator.userAgent});
+
+/* restore settings */
+$('#apiKey').value = LS.get('tw_key') || '';
+$('#useFree').checked = LS.get('tw_free') !== '0';
+$('#freeOnly').checked = LS.get('tw_freeonly') !== '0';   // default ON (no credit spend)
+function freeOnlyOn(){ return LS.get('tw_freeonly') !== '0'; }
+$('#indA').value = LS.get('tw_indA') || '';
+$('#indB').value = LS.get('tw_indB') || '';
+
+$('#setBtn').onclick = ()=> $('#settings').classList.toggle('open');
+$('#setClose').onclick = ()=> $('#settings').classList.remove('open');
+$('#setSave').onclick = ()=>{
+  LS.set('tw_key', $('#apiKey').value.trim());
+  LS.set('tw_free', $('#useFree').checked ? '1':'0');
+  LS.set('tw_freeonly', $('#freeOnly').checked ? '1':'0');
+  LS.set('tw_defaultmodel', $('#defaultModel').value);
+  log('info','settings saved', {customKey: !!$('#apiKey').value.trim(), useFree:$('#useFree').checked, defaultModel:$('#defaultModel').value||'auto'});
+  $('#settings').classList.remove('open');
+};
+$('#drawerClose').onclick = ()=>{ $('#drawer').classList.remove('open'); selected=null; sizeCanvas(); anchor(); };
+
+/* log panel handlers */
+$('#logBtn').onclick = ()=>{ $('#logPanel').classList.add('open'); renderLog(); };
+$('#logClose').onclick = ()=> $('#logPanel').classList.remove('open');
+$('#logClear').onclick = ()=>{ LOGS=[]; LS.set(LOGKEY,'[]'); renderLog(); };
+$('#logCopy').onclick = async ()=>{
+  try{ await navigator.clipboard.writeText(fmtLog()); $('#logCopy').textContent='Copied!'; setTimeout(()=>$('#logCopy').textContent='Copy',1200); }
+  catch(e){ alert('Copy failed — use Download instead.\n'+e.message); }
+};
+$('#logDownload').onclick = ()=>{
+  const blob=new Blob([fmtLog()],{type:'text/plain'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='topicweb-log.txt'; document.body.appendChild(a); a.click(); a.remove();
+};
+
+/* model scoreboard panel */
+function renderModels(){
+  const s=getStats();
+  const rows=Object.keys(s).map(m=>({m, ok:s[m].ok||0, fail:s[m].fail||0, bl:s[m].bl||0}))
+    .sort((a,b)=> (b.ok-a.ok) || (a.fail-b.fail));
+  const now=Date.now();
+  let html='<table><thead><tr><th>Model</th><th class="num">✓ works</th><th class="num">✗ fails</th><th>status</th></tr></thead><tbody>';
+  if(!rows.length) html+='<tr><td colspan="4" style="opacity:.6;padding:14px 8px">No data yet — run Generate a few times and models will earn scores here.</td></tr>';
+  rows.forEach(r=>{
+    let status='<span class="ok">active</span>';
+    if(r.bl>now){ const days=Math.ceil((r.bl-now)/86400000); status='<span class="bl">blacklisted '+(days>1?days+'d':'<1d')+' left</span>'; }
+    html+='<tr><td class="mname">'+esc(r.m)+'</td><td class="num">'+r.ok+'</td><td class="num">'+r.fail+'</td><td>'+status+'</td></tr>';
+  });
+  html+='</tbody></table><div style="opacity:.6;margin-top:10px;font-size:11px">Selection is weighted-random: more ✓ works → more likely to be picked. A hard failure blacklists a model for '+BLACKLIST_DAYS+' days; rate-limit/credit hiccups only cool it down for '+SOFT_COOLDOWN_MIN+' min.</div>';
+  $('#modelsBody').innerHTML=html;
+}
+$('#modelsBtn').onclick = ()=>{ $('#logPanel').classList.remove('open'); $('#modelsPanel').classList.add('open'); renderModels(); };
+$('#modelsClose').onclick = ()=> $('#modelsPanel').classList.remove('open');
+$('#modelsReset').onclick = ()=>{ if(confirm('Reset all model scores and blacklists?')){ LS.set('tw_modelstats','{}'); renderModels(); } };
+
+/* ---------- FREE DATA SCRAPING (no key) ---------- */
+async function fetchJSON(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+// Hacker News — Algolia API, CORS-enabled, free, no key. Auto-broadens if a narrow query is empty.
+async function hn(query){
+  async function go(q){
+    try{
+      const d = await fetchJSON('https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=8&query='+encodeURIComponent(q));
+      return (d.hits||[]).map(h=>({title:h.title, src:'HN'})).filter(x=>x.title);
+    }catch(e){ log('warn','HN fetch failed "'+q+'"', e.message); return null; }
+  }
+  let out=await go(query);
+  if(out && out.length){ log('info','HN ok "'+query+'"', {posts:out.length}); return out; }
+  const broad=(query.split(/\s+/).filter(w=>w.length>3).slice(0,2).join(' ')) || query.split(/\s+/)[0] || query;
+  if(broad && broad.toLowerCase()!==query.toLowerCase()){
+    const o2=await go(broad);
+    if(o2 && o2.length){ log('info','HN ok (broadened to "'+broad+'")', {posts:o2.length}); return o2; }
+  }
+  log('info','HN no results "'+query+'"', {posts:0});
+  return [];
+}
+// Wikipedia search — CORS-enabled (origin=*), free. Gives related topical context for ANY industry.
+async function wiki(query){
+  try{
+    const d = await fetchJSON('https://en.wikipedia.org/w/api.php?action=query&list=search&srlimit=8&srsearch='+encodeURIComponent(query)+'&format=json&origin=*');
+    const out=((d.query&&d.query.search)||[]).map(s=>({title:s.title, src:'Wikipedia'}));
+    log('info','Wikipedia ok "'+query+'"', {topics:out.length});
+    return out;
+  }catch(e){ log('warn','Wikipedia failed "'+query+'"', e.message); return []; }
+}
+async function gatherTrends(industry){
+  const [h,w] = await Promise.all([hn(industry), wiki(industry)]);
+  const all=[...h,...w].slice(0,14);
+  log('info','trends gathered "'+industry+'"', {total:all.length, hn:h.length, wiki:w.length});
+  return all;
+}
+
+/* ---------- AI CALL (OpenRouter, free models only) ---------- */
+async function callAI(model, key, prompt, timeoutMs){
+  const ctrl=new AbortController();
+  const to=setTimeout(()=>ctrl.abort(), timeoutMs||40000);
+  try{
+    const r = await fetch('https://openrouter.ai/api/v1/chat/completions',{
+      method:'POST', signal:ctrl.signal,
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+key,
+        'HTTP-Referer':(location.origin&&location.origin!=='null')?location.origin:'http://localhost',
+        'X-Title':'Topic Web'
+      },
+      body:JSON.stringify({
+        model, max_tokens:16000,
+        messages:[
+          {role:'system',content:'You output only raw JSON. No markdown, no code fences, no commentary.'},
+          {role:'user',content:prompt}
+        ]
+      })
+    });
+    if(!r.ok){
+      let m=''; try{ m=(await r.json()).error.message; }catch(e){ m=await r.text(); }
+      throw new Error('AI error '+r.status+': '+m);
+    }
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message||'AI error');
+    const msg = d.choices && d.choices[0] && d.choices[0].message;
+    return (msg && (msg.content||'')) || '';
+  }catch(e){
+    if(e.name==='AbortError') throw new Error('timed out after '+((timeoutMs||40000)/1000)+'s');
+    throw e;
+  }finally{ clearTimeout(to); }
+}
+
+/* ---------- auto-pick ONLY free models from OpenRouter ---------- */
+// curated general-purpose chat models that are good at returning JSON, best first
+const PREFERRED=[
+  'deepseek/deepseek-chat-v3-0324:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'google/gemini-2.0-flash-exp:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'deepseek/deepseek-r1:free',
+  'meta-llama/llama-3.1-405b-instruct:free',
+  'nvidia/llama-3.1-nemotron-70b-instruct:free',
+  'google/gemma-2-9b-it:free',
+  'meta-llama/llama-3.1-8b-instruct:free',
+  'mistralai/mistral-7b-instruct:free'
+];
+const FREE_FALLBACK=PREFERRED.slice();
+// cheap, RELIABLE-at-JSON paid models used when free models are busy. Reliable-first (gpt-4o-mini /
+// gemini are excellent at structured JSON; ~0.05–0.1¢/run). The tiny ones are flaky at JSON → last.
+const PAID_FALLBACK=[
+  'openai/gpt-4o-mini',
+  'google/gemini-2.0-flash-001',
+  'meta-llama/llama-3.1-8b-instruct',
+  'mistralai/mistral-nemo'
+];
+// skip models that aren't general chat (won't return our JSON / hang)
+// only exclude models that genuinely can't return our text JSON; keep code/general models (some work fine)
+const BAD=/(safety|guard|moderation|embed|rerank|vision|-vl\b|image|audio|tts|whisper|content-safety)/i;
+let FREE_MODELS=[];        // ordered best-first (used for auto-selection)
+let PAID_MODELS=[];        // cheapest-first paid backups
+let ALL_FREE=[];           // every free model id (for the Settings default-model picker)
+async function loadFreeModels(){
+  let all=[];
+  try{
+    const d=await fetchJSON('https://openrouter.ai/api/v1/models');
+    all=d.data||[];
+    log('info','fetched model list from OpenRouter', {count:all.length});
+  }catch(e){ log('warn','model list fetch failed — using built-in fallback', e.message); }
+
+  const isFree=m=>{const p=m.pricing||{};return (+p.prompt===0)&&(+p.completion===0)&&(+(p.request||0)===0);};
+  const freeSet=all.filter(isFree).map(m=>m.id);
+  ALL_FREE = freeSet.slice().sort();          // every free model, for the Settings default-model picker
+  const set=new Set(freeSet);
+  let ordered = PREFERRED.filter(id=>set.has(id));
+  const extras = freeSet.filter(id=>!ordered.includes(id) && !BAD.test(id) && /(instruct|chat|gemma|gemini|llama|qwen|mistral|deepseek)/i.test(id));
+  ordered = ordered.concat(extras);
+  if(!ordered.length) ordered = FREE_FALLBACK.slice();
+  FREE_MODELS=ordered;
+
+  // cheapest reliable paid models (dynamic), with a hardcoded safety net
+  const cheap = all.filter(m=>{const p=m.pricing||{};return (+p.prompt>0)&&(+p.completion>0)&&!BAD.test(m.id)&&/(instruct|chat|gemini|llama|qwen|mistral|gpt|gemma)/i.test(m.id);})
+    .sort((a,b)=>((+a.pricing.prompt+ +a.pricing.completion)-(+b.pricing.prompt+ +b.pricing.completion)))
+    .map(m=>m.id);
+  const paidSet=new Set(cheap);
+  PAID_MODELS = PAID_FALLBACK.filter(id=>paidSet.has(id)).concat(cheap.filter(id=>!PAID_FALLBACK.includes(id)).slice(0,4));
+  if(!PAID_MODELS.length) PAID_MODELS = PAID_FALLBACK.slice();
+
+  populateDefaultModelSelect();
+  log('info','try-order ready', {free:FREE_MODELS.slice(0,6), paidBackup:PAID_MODELS.slice(0,4)});
+}
+function populateDefaultModelSelect(){
+  const sel=$('#defaultModel'); if(!sel) return;
+  const saved=LS.get('tw_defaultmodel')||'';
+  const opt=(id,label)=>'<option value="'+esc(id)+'">'+esc(label)+'</option>';
+  let html=opt('','Auto — smart pick (recommended)');
+  // every free model, minus ones that can't produce text JSON (music/image/audio/embeddings/etc.)
+  const NONTEXT=/(lyria|music|audio|tts|speech|whisper|vision|-vl\b|image|imagen|dall|flux|diffusion|sdxl|video|veo|sora|embed|rerank|moderation|safety|guard|clip)/i;
+  const freeList = (ALL_FREE.length?ALL_FREE:FREE_MODELS).filter(m=>!NONTEXT.test(m));
+  if(freeList.length){ html+='<optgroup label="Free models ('+freeList.length+')">'+freeList.map(m=>opt(m,m.replace(/:free$/,'').split('/').pop()+'  ·  '+m.split('/')[0])).join('')+'</optgroup>'; }
+  if(PAID_MODELS.length){ html+='<optgroup label="Paid (cheap, reliable)">'+PAID_MODELS.map(m=>opt(m,m.split('/').pop())).join('')+'</optgroup>'; }
+  // keep a saved model selectable even if not in the current live lists
+  if(saved && FREE_MODELS.indexOf(saved)<0 && PAID_MODELS.indexOf(saved)<0){ html+=opt(saved, saved+'  (saved)'); }
+  sel.innerHTML=html; sel.value=saved;
+}
+
+function treeCounts(n, layers){
+  const cap=90; let counts=[], c=n, total=0;
+  for(let L=1;L<=layers;L++){ counts.push(c); total+=c; c*=n; }
+  return {counts, total, deepest:counts[counts.length-1], target:Math.min(total,cap), capped: total>cap, cap};
+}
+function buildPrompt(A,B,ctxA,ctxB,n,layers,trendsA,trendsB){
+  const tA = trendsA.map(t=>'- '+t.title).join('\n') || '(none gathered)';
+  const tB = trendsB.map(t=>'- '+t.title).join('\n') || '(none gathered)';
+  const L=Math.max(1,Math.min(5,layers||1));
+  const tc=treeCounts(n,L);
+  const perLayer=tc.counts.map((c,i)=>'Layer '+(i+1)+' = '+c+(i?(' ('+n+'^'+(i+1)+')'):' base topics')).join('; ');
+  return `You are a content strategist. Build a LAYERED web of content topics that BOTH of these industries can authentically create content about.
+
+INDUSTRY A: ${A}${ctxA?'\nContext: '+ctxA:''}
+INDUSTRY B: ${B}${ctxB?'\nContext: '+ctxB:''}
+
+Real signal pulled from Hacker News discussions + Wikipedia topics (use as trend/context signal where relevant):
+[A trends]
+${tA}
+[B trends]
+${tB}
+
+Build a STRICT TREE that is ${L} layer(s) deep where EVERY topic has EXACTLY ${n} child sub-topics (exponential, not linear):
+- ${perLayer}.
+- TOTAL = ${tc.target} topics — MANDATORY. Produce every single node; do not stop early.${tc.capped?` (The full ${n}^${L} tree would be ${tc.total}; cap at ${tc.cap} by expanding the strongest branches.)`:''}
+- Layer 1 topics have parent=null. Every other topic's "parent" = the id of its parent one layer up. Each parent MUST have exactly ${n} children.
+- Deeper layers are NARROWER, more specific niches of their parent. Give every topic a unique short id (e.g. "t1","t1a","t1a2").
+
+Return ONLY valid JSON, no prose, no markdown fences. Keep each node SMALL (structure + a one-line hook) so you can produce the WHOLE ${tc.target}-node tree in one response:
+{"nodes":[
+  {"id":"t1","layer":1,"parent":null,"topic":"2-5 word label","lean":0-100,"strength":1-10,"talkingPoint":"one punchy sentence: the angle both can run with"}
+],"links":[["t1a","t2b"]]}
+Field rules:
+- "lean": 0 = almost entirely ${A}, 100 = almost entirely ${B}, 50 = equal. Vary it honestly across topics.
+- "strength": content opportunity 1 (weak) to 10 (excellent).
+- Every node needs: id, layer, parent, topic, lean, strength, talkingPoint. Nothing else — keep it compact so ALL ${tc.target} nodes fit.
+- "links": 3-8 pairs of ids of different-branch topics that relate. Use only ids you defined.
+PRIORITISE producing every node of the tree over long text. Be specific and concrete.`;
+}
+
+function parseAI(text){
+  let t = text.trim().replace(/^```json?/i,'').replace(/```$/,'').trim();
+  const s=t.indexOf('{');
+  if(s>0) t=t.slice(s);
+  const e=t.lastIndexOf('}');
+  let whole = (e>=0)? t.slice(0,e+1) : t;
+  try{ return JSON.parse(whole); }catch(_){}
+  // salvage a TRUNCATED response: keep nodes up to the last complete object, then close the array+root
+  const ni = t.indexOf('"nodes"');
+  if(ni>=0){
+    const lb = t.indexOf('[', ni);
+    if(lb>=0){
+      // walk to find the last balanced top-level object inside the nodes array
+      let depth=0, inStr=false, esc=false, lastComplete=-1;
+      for(let i=lb+1;i<t.length;i++){
+        const ch=t[i];
+        if(inStr){ if(esc)esc=false; else if(ch==='\\')esc=true; else if(ch==='"')inStr=false; continue; }
+        if(ch==='"')inStr=true;
+        else if(ch==='{')depth++;
+        else if(ch==='}'){ depth--; if(depth===0) lastComplete=i; }
+      }
+      if(lastComplete>0){
+        try{ return JSON.parse('{"nodes":['+t.slice(lb+1,lastComplete+1)+']}'); }catch(_){}
+      }
+    }
+  }
+  return JSON.parse(whole); // re-throw the original error if salvage failed
+}
+
+/* ---------- GRAPH ENGINE (self-contained force layout on canvas) ---------- */
+const cv=$('#cv'), ctx=cv.getContext('2d');
+let nodes=[], edges=[], DPR=Math.min(2,window.devicePixelRatio||1);
+let dragging=null, hover=null, selected=null;
+
+function sizeCanvas(){
+  const r=cv.parentElement.getBoundingClientRect();
+  // when the detail panel is open, reserve its width so the web isn't hidden behind it
+  const reserve = $('#drawer').classList.contains('open') ? Math.min(380, r.width*0.6) : 0;
+  const w=Math.max(60, r.width-reserve);
+  cv.width=w*DPR; cv.height=r.height*DPR;
+  cv.style.width=w+'px'; cv.style.height=r.height+'px';
+}
+window.addEventListener('resize',()=>{sizeCanvas();anchor();});
+function W(){return cv.width/DPR;} function H(){return cv.height/DPR;}   // world units = CSS px
+
+const view={zoom:1, panX:0, panY:0};
+let panning=false, panSX=0, panSY=0, panOX=0, panOY=0, downMoved=false;
+function layerScale(L){ return Math.pow(0.78, Math.max(0,(L||1)-1)); }   // deeper layers = smaller orbs
+function fitView(){
+  if(!nodes.length) return;
+  let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;
+  nodes.forEach(n=>{const r=(n.type==='ind'?22:(n.r||10))+34; mnx=Math.min(mnx,n.x-r);mny=Math.min(mny,n.y-r);mxx=Math.max(mxx,n.x+r);mxy=Math.max(mxy,n.y+r);});
+  const bw=Math.max(1,mxx-mnx), bh=Math.max(1,mxy-mny);
+  const z=Math.max(0.2, Math.min(W()/bw, H()/bh, 1.3)*0.94);
+  view.zoom=z; view.panX=(W()-bw*z)/2 - mnx*z; view.panY=(H()-bh*z)/2 - mny*z;
+}
+
+function anchor(){
+  const a=nodes.find(n=>n.id==='A'), b=nodes.find(n=>n.id==='B');
+  if(a){a.fx=W()*0.10; a.fy=H()*0.5;}
+  if(b){b.fx=W()*0.90; b.fy=H()*0.5;}
+}
+
+// graph = {nodes:[{id,layer,parent,topic,lean,strength,...}], links:[[id,id],...]}
+function buildGraph(A,B,graph){
+  thinking=false;   // stop the loading animation; show the real web
+  nodes=[
+    {id:'A',type:'ind',label:A,color:getCSS('--indA')},
+    {id:'B',type:'ind',label:B,color:getCSS('--indB')}
+  ];
+  edges=[];
+  const gnodes=(graph.nodes||[]).slice().sort((a,b)=>(a.layer||1)-(b.layer||1)); // parents before children
+  const byId={};
+  const baseCount=Math.max(1, gnodes.filter(g=>(g.layer||1)===1).length);
+  let baseSeen=0;
+  gnodes.forEach((c,i)=>{
+    const layer=Math.max(1,Math.min(5,Number(c.layer)||1));
+    const sv=Number(c.strength); c.strength=(sv>=1&&sv<=10)?Math.round(sv):6;
+    const lv=Number(c.lean); c.lean=(lv>=0&&lv<=100)?Math.round(lv):50;
+    const id=String(c.id||('n'+i));
+    const parent = (layer>1 && c.parent && byId[c.parent]) ? byId[c.parent] : null;
+    let px,py;
+    if(parent){
+      const ang=Math.random()*6.283, rad=55+layer*10;
+      px=parent.x+Math.cos(ang)*rad; py=parent.y+Math.sin(ang)*rad;
+    }else{
+      const frac = baseCount>1 ? baseSeen/(baseCount-1) : 0.5; baseSeen++;
+      px=W()*(0.27+(c.lean/100)*0.46)+(Math.random()-.5)*W()*0.05;
+      py=H()*(0.14+0.72*frac);
+    }
+    const node={id,type:'topic',layer,parent:(parent?parent.id:null),label:c.topic||c.label||('topic '+i),
+      data:c, bias:c.lean, x:px, y:py, vx:0, vy:0, r:(6+c.strength*1.3)*layerScale(layer)};
+    nodes.push(node); byId[id]=node;
+    if(parent) edges.push({s:parent.id,t:id,kind:'tree'});
+    else { edges.push({s:'A',t:id,kind:'anchor'}); edges.push({s:'B',t:id,kind:'anchor'}); }
+  });
+  (graph.links||[]).forEach(pair=>{
+    if(Array.isArray(pair)&&pair.length>=2){
+      const s=String(pair[0]),t=String(pair[1]);
+      if(byId[s]&&byId[t]&&s!==t) edges.push({s,t,kind:'cross'});
+    }
+  });
+  nodes.forEach(n=>{ if(n.x===undefined){n.x=W()*0.5;n.y=H()*0.5;n.vx=0;n.vy=0;} });
+  nodes.forEach(measureFootprint);   // precompute label bounding boxes for collision separation
+  anchor();
+  view.zoom=1; view.panX=0; view.panY=0;
+  $('#status').style.display='none';
+  setTimeout(fitView, 1500);   // auto-fit once the layout settles
+}
+function getCSS(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+// measure a node's full footprint (orb + wrapped label) so the layout can keep labels from overlapping
+function measureFootprint(n){
+  const bold=n.type==='ind';
+  ctx.font=(bold?'600 ':'')+(bold?12:11)+'px sans-serif';
+  const maxW=132, words=String(n.label||'').split(' ');
+  let ln='', ls=[];
+  for(const w of words){ if(ctx.measureText(ln+w).width>maxW && ln){ls.push(ln.trim());ln=w+' ';} else ln+=w+' '; }
+  if(ln.trim())ls.push(ln.trim());
+  const lw=ls.length?Math.max.apply(null,ls.map(l=>ctx.measureText(l).width)):20;
+  const lh=(bold?14:13), labelH=ls.length*lh+6;
+  const r=(n.type==='ind'?18:(n.r||10));
+  const labelStart=(n.type==='ind'?22:r+4);
+  const top=-r, bottom=labelStart+labelH;
+  n.fpHalfW=Math.max(r, lw/2+6);
+  n.fpHalfH=(bottom-top)/2;
+  n.fpCy=(top+bottom)/2;            // label box center offset from n.y
+}
+const NodeById=id=>nodes.find(n=>n.id===id);
+
+function tick(){
+  if(thinking) return;   // generation in progress — board shows the thinking animation
+  const REP = 0.11*W()*H()/Math.max(8,nodes.length);
+  // repulsion + label-aware separation
+  for(let i=0;i<nodes.length;i++){
+    for(let j=i+1;j<nodes.length;j++){
+      const a=nodes[i],b=nodes[j];
+      let dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy||1, d=Math.sqrt(d2);
+      const minD=(a.r||16)+(b.r||16)+18;   // orb spacing; label spacing handled by box pass below
+      let f=REP/d2;
+      if(d<minD) f += (minD-d)*0.05;
+      const fx=f*dx/d, fy=f*dy/d;
+      a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;
+    }
+  }
+  // springs by edge kind
+  const anchorRest=Math.min(W()*0.34, W()*0.5-90);
+  edges.forEach(e=>{
+    const a=NodeById(e.s),b=NodeById(e.t); if(!a||!b) return;
+    let dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+    let rest,k;
+    if(e.kind==='tree'){ rest=58+(b.layer||2)*6; k=0.02; }
+    else if(e.kind==='cross'){ rest=130; k=0.0025; }
+    else { rest=anchorRest; k=0.0011; }
+    const f=(d-rest)*k, fx=f*dx/d, fy=f*dy/d;
+    a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;
+  });
+  nodes.forEach(n=>{
+    if(n.type==='topic' && n.layer===1){
+      const targetX = W()*(0.27 + (n.bias/100)*0.46);   // base layer leans by bias
+      n.vx += (targetX - n.x)*0.004;
+      n.vy += (H()*0.5 - n.y)*0.0003;
+    }
+    if(n.fx!=null){n.x=n.fx;n.y=n.fy;n.vx=0;n.vy=0;return;}
+    if(n===dragging) return;
+    n.vx*=0.86; n.vy*=0.86;
+    n.x+=n.vx; n.y+=n.vy;   // no viewport clamp — world can grow; user zooms/pans
+  });
+  // hard label box-collision separation so labels never overlap
+  for(let i=0;i<nodes.length;i++){
+    for(let j=i+1;j<nodes.length;j++){
+      const a=nodes[i],b=nodes[j];
+      if(a.fpHalfW==null||b.fpHalfW==null) continue;
+      const dx=b.x-a.x, dy=(b.y+b.fpCy)-(a.y+a.fpCy);
+      const ox=(a.fpHalfW+b.fpHalfW+6)-Math.abs(dx);
+      const oy=(a.fpHalfH+b.fpHalfH+6)-Math.abs(dy);
+      if(ox>0 && oy>0){
+        if(ox<oy){
+          const push=ox*0.5*(dx<0?-1:1);
+          if(a.fx==null&&a!==dragging)a.x-=push;
+          if(b.fx==null&&b!==dragging)b.x+=push;
+        }else{
+          const push=oy*0.5*(dy<0?-1:1);
+          if(a.fx==null&&a!==dragging)a.y-=push;
+          if(b.fx==null&&b!==dragging)b.y+=push;
+        }
+      }
+    }
+  }
+}
+
+function draw(){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.setTransform(DPR*view.zoom,0,0,DPR*view.zoom, DPR*view.panX, DPR*view.panY);
+  const lw=1/view.zoom;
+  // edges
+  edges.forEach(e=>{
+    const a=NodeById(e.s),b=NodeById(e.t); if(!a||!b) return;
+    const hot = hover && (hover.id===a.id||hover.id===b.id);
+    const base = e.kind==='cross' ? '245,158,11,' : e.kind==='tree' ? '150,165,195,' : '120,140,165,';
+    const alpha = hot ? 0.85 : (e.kind==='anchor'?0.13 : e.kind==='tree'?0.26 : 0.32);
+    ctx.strokeStyle='rgba('+base+alpha+')';
+    ctx.lineWidth=(hot?2:1)*lw;
+    ctx.setLineDash(e.kind==='cross'?[5*lw,4*lw]:[]);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);
+    const mx=(a.x+b.x)/2, my=(a.y+b.y)/2-Math.abs(a.x-b.x)*0.03;
+    ctx.quadraticCurveTo(mx,my,b.x,b.y);ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  // nodes
+  nodes.forEach(n=>{
+    if(n.type==='ind'){
+      ctx.beginPath();ctx.fillStyle=n.color;ctx.arc(n.x,n.y,18,0,7);ctx.fill();
+      drawLabel(n.label, n.x, n.y+22, n.color, true);
+    }else{
+      const s=Math.max(1,Math.min(10,(n.data&&n.data.strength)||5));
+      const lean=(n.bias>=0&&n.bias<=100)?n.bias:50;
+      // compressed gradient: lean ≤30 → full red (A), ≥70 → full blue (B), 50 → purple; transition only in the 30–70 band
+      const t=Math.max(0,Math.min(1,(lean-30)/40));
+      const hue=Math.round(((240 + (1-t)*120)%360+360)%360);
+      const light=Math.round(78 - s/10*46);                          // strong=dark
+      const grad=ctx.createRadialGradient(n.x-n.r*0.35,n.y-n.r*0.35,1,n.x,n.y,n.r);
+      grad.addColorStop(0,'hsl('+hue+',72%,'+Math.min(88,light+12)+'%)');
+      grad.addColorStop(1,'hsl('+hue+',68%,'+light+'%)');
+      ctx.beginPath();ctx.fillStyle=grad;ctx.arc(n.x,n.y,n.r,0,7);ctx.fill();
+      if(selected===n){ctx.strokeStyle='#fff';ctx.lineWidth=3*lw;ctx.stroke();
+        ctx.beginPath();ctx.strokeStyle='rgba(255,255,255,.45)';ctx.lineWidth=1.5*lw;ctx.arc(n.x,n.y,n.r+4*lw+3,0,7);ctx.stroke();}
+      else if(hover===n){ctx.strokeStyle='#fff';ctx.lineWidth=2*lw;ctx.stroke();}
+      if(n.r>=9){
+        ctx.fillStyle = light>54 ? 'rgba(0,0,0,.7)' : 'rgba(255,255,255,.92)';
+        ctx.font='700 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(s, n.x, n.y); ctx.textBaseline='alphabetic';
+      }
+      // level-of-detail: base labels always; deeper labels only when zoomed in or hovered
+      if(n.layer===1 || view.zoom>=1.15 || hover===n) drawLabel(n.label, n.x, n.y+n.r+4, getCSS('--text'), false);
+    }
+  });
+  ctx.setTransform(1,0,0,1,0,0);
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+// centered, wrapped label with a dark rounded background for readability over lines/orbs (world units)
+function drawLabel(text, cx, topY, color, bold){
+  ctx.font=(bold?'600 ':'')+(bold?12:11)+'px sans-serif';
+  const maxW=132, words=String(text).split(' ');
+  let lines=[], line='';
+  for(const w of words){ if(ctx.measureText(line+w).width>maxW && line){lines.push(line.trim());line=w+' ';} else line+=w+' '; }
+  if(line.trim()) lines.push(line.trim());
+  const lh=(bold?14:13), padX=6, padY=3;
+  const tw=Math.max.apply(null,lines.map(l=>ctx.measureText(l).width));
+  const boxW=tw+padX*2, boxH=lines.length*lh+padY*2, bx=cx-boxW/2;
+  ctx.fillStyle='rgba(8,11,16,0.78)'; roundRect(bx,topY,boxW,boxH,5); ctx.fill();
+  ctx.fillStyle=color||getCSS('--text'); ctx.textAlign='center'; ctx.textBaseline='top';
+  lines.forEach((l,i)=>ctx.fillText(l,cx,topY+padY+i*lh));
+  ctx.textBaseline='alphabetic';
+}
+/* ---------- "thinking" animation shown while a Generate runs ---------- */
+let thinking=false, thinkCaption='', tFrame=0, thinkOrbs=[], thinkWords=[], thinkPool=[];
+function makeWordPool(A,B){
+  const g=['trends','audience','overlap','community','story','data','myths','how-to','seasonal','pricing','tools','reviews','growth','Q&A','behind the scenes','comparisons','sustainability','tips','rituals','recovery'];
+  const aw=(A||'A').split(/\s+/)[0], bw=(B||'B').split(/\s+/)[0];
+  const pool=[A+' × '+B];
+  g.forEach(x=>{ pool.push(aw+' '+x); pool.push(bw+' '+x); pool.push(x); });
+  return pool;
+}
+function startThinking(A,B){
+  thinking=true; tFrame=0; thinkWords=[]; thinkPool=makeWordPool(A,B); thinkCaption='Warming up…';
+  thinkOrbs=[];
+  for(let i=0;i<16;i++) thinkOrbs.push({a:Math.random()*6.283, r:30+Math.random()*150, sp:(Math.random()<.5?-1:1)*(0.003+Math.random()*0.012), rad:5+Math.random()*11, hue:240+Math.random()*120, ph:Math.random()*6.283});
+  $('#status').style.display='none';
+  nodes=[]; edges=[]; selected=null;
+}
+function stopThinking(){ thinking=false; }
+function spawnWord(cx,cy){
+  if(!thinkPool.length) return;
+  const text=thinkPool[Math.floor(Math.random()*thinkPool.length)];
+  thinkWords.push({text, x:cx+(Math.random()-.5)*W()*0.5, y:cy+40+Math.random()*60, vy:-(0.5+Math.random()*0.5), age:0, verdict:null});
+  if(thinkWords.length>10) thinkWords.shift();
+}
+function drawThinking(){
+  tFrame++;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.clearRect(0,0,W(),H());
+  const cx=W()/2, cy=H()/2;
+  // positions of orbiting orbs
+  const pts=thinkOrbs.map(o=>{ o.a+=o.sp; return {x:cx+Math.cos(o.a)*o.r, y:cy+Math.sin(o.a)*o.r*0.62, o}; });
+  // connecting lines (web forming/breaking)
+  for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){
+    const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y, d=Math.hypot(dx,dy);
+    if(d<120){ ctx.strokeStyle='rgba(150,165,200,'+(0.18*(1-d/120))+')'; ctx.lineWidth=1; ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.stroke(); }
+  }
+  // orbs (pulsing, lean-colored)
+  pts.forEach(({x,y,o})=>{
+    const r=o.rad*(0.8+0.25*Math.sin(tFrame*0.06+o.ph));
+    const g=ctx.createRadialGradient(x-r*0.35,y-r*0.35,1,x,y,r);
+    g.addColorStop(0,'hsl('+o.hue+',75%,66%)'); g.addColorStop(1,'hsl('+o.hue+',70%,46%)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+  });
+  // candidate words: appear, float up, then get kept (green ✓) or tossed (red ✗)
+  if(tFrame%22===0) spawnWord(cx,cy);
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(let i=thinkWords.length-1;i>=0;i--){
+    const wd=thinkWords[i]; wd.age++; wd.y+=wd.vy;
+    if(wd.age===34) wd.verdict = Math.random()<0.62 ? 'toss' : 'keep';
+    if(wd.verdict==='toss'){ wd.y+=1.1; }
+    let alpha = wd.age<8 ? wd.age/8 : (wd.age>60 ? Math.max(0,(90-wd.age)/30) : 1);
+    if(alpha<=0){ thinkWords.splice(i,1); continue; }
+    const col = wd.verdict==='keep' ? '90,220,130' : wd.verdict==='toss' ? '235,110,110' : '210,220,235';
+    ctx.font='12px sans-serif';
+    const tw=ctx.measureText(wd.text).width, padX=8;
+    ctx.fillStyle='rgba(8,11,16,'+(0.55*alpha)+')';
+    roundRect(wd.x-tw/2-padX, wd.y-11, tw+padX*2, 22, 6); ctx.fill();
+    ctx.fillStyle='rgba('+col+','+alpha+')'; ctx.fillText(wd.text, wd.x, wd.y);
+    if(wd.verdict){ ctx.fillText(wd.verdict==='keep'?' ✓':' ✗', wd.x+tw/2+padX+6, wd.y); }
+  }
+  // caption
+  ctx.fillStyle='rgba(230,237,243,.92)'; ctx.font='600 15px sans-serif';
+  ctx.fillText(esc(thinkCaption||'Building the web…').replace(/&amp;/g,'&'), cx, cy+H()*0.32);
+  ctx.fillStyle='rgba(139,150,165,.8)'; ctx.font='12px sans-serif';
+  ctx.fillText('finding talking points…', cx, cy+H()*0.32+22);
+  ctx.setTransform(1,0,0,1,0,0);
+}
+function loop(){
+  if(thinking){ drawThinking(); }
+  else {
+    tick();
+    // camera-follow: keep the selected orb locked at screen-center while it (and the web) keep floating
+    if(selected && nodes.indexOf(selected)>=0 && !panning && dragging!==selected){
+      const tpx=W()/2 - selected.x*view.zoom, tpy=H()/2 - selected.y*view.zoom;
+      view.panX += (tpx-view.panX)*0.12;
+      view.panY += (tpy-view.panY)*0.12;
+    }
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ---------- interaction: zoom + pan + drag ---------- */
+function toWorld(ev){
+  const r=cv.getBoundingClientRect();
+  const sx=ev.clientX-r.left, sy=ev.clientY-r.top;
+  return {x:(sx-view.panX)/view.zoom, y:(sy-view.panY)/view.zoom, sx, sy};
+}
+function pick(w){
+  for(let i=nodes.length-1;i>=0;i--){const n=nodes[i];
+    const rad=(n.type==='ind'?18:n.r)+5/view.zoom;
+    if((w.x-n.x)**2+(w.y-n.y)**2<rad*rad) return n;}
+  return null;
+}
+cv.addEventListener('mousemove',e=>{
+  const w=toWorld(e);
+  if(dragging){dragging.x=w.x;dragging.y=w.y;dragging.vx=0;dragging.vy=0;if(dragging.fx!=null){dragging.fx=w.x;dragging.fy=w.y;}downMoved=true;return;}
+  if(panning){view.panX=panOX+(w.sx-panSX);view.panY=panOY+(w.sy-panSY);downMoved=true;return;}
+  hover=pick(w);cv.style.cursor=hover?'pointer':'grab';
+});
+cv.addEventListener('mousedown',e=>{
+  const w=toWorld(e); downMoved=false;
+  const n=pick(w);
+  if(n&&n.type==='topic'){ dragging=n; }
+  else { panning=true; panSX=w.sx; panSY=w.sy; panOX=view.panX; panOY=view.panY; cv.style.cursor='grabbing'; }
+});
+window.addEventListener('mouseup',()=>{ dragging=null; panning=false; cv.style.cursor='grab'; });
+cv.addEventListener('click',e=>{ if(downMoved) return; const n=pick(toWorld(e)); if(n&&n.type==='topic')openDrawer(n.data); });
+cv.addEventListener('dblclick',e=>{ e.preventDefault(); fitView(); });
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=cv.getBoundingClientRect();
+  const sx=e.clientX-r.left, sy=e.clientY-r.top;
+  const wx=(sx-view.panX)/view.zoom, wy=(sy-view.panY)/view.zoom;
+  view.zoom=Math.max(0.15, Math.min(4, view.zoom*Math.exp(-e.deltaY*0.0015)));
+  view.panX=sx-wx*view.zoom; view.panY=sy-wy*view.zoom;
+},{passive:false});
+
+function hasDetail(c){ return !!(c && ((c.questionsAB&&c.questionsAB.length)||(c.questionsBA&&c.questionsBA.length)||c.context||c.whyA)); }
+function renderCard(c, state){   // state: 'have' | 'loading' | 'failed'
+  const An=(nodes.find(n=>n.id==='A')||{}).label||'Industry A';
+  const Bn=(nodes.find(n=>n.id==='B')||{}).label||'Industry B';
+  const lean=(c.lean>=0&&c.lean<=100)?c.lean:50;
+  const leanText = lean<=40 ? ('Leans toward '+An) : lean>=60 ? ('Leans toward '+Bn) : 'Balanced — serves both equally';
+  const legacy=(c.questions||[]);
+  const qAB=(c.questionsAB&&c.questionsAB.length?c.questionsAB:legacy);
+  const qBA=(c.questionsBA&&c.questionsBA.length?c.questionsBA:[]);
+  const lis=arr=>(arr&&arr.length)?arr.map(q=>'<li>'+esc(q)+'</li>').join(''):'<li style="opacity:.6">—</li>';
+  const aDot='<span style="color:var(--indA)">'+esc(An)+'</span>';
+  const bDot='<span style="color:var(--indB)">'+esc(Bn)+'</span>';
+  let detail;
+  if(state==='loading'){
+    detail='<div class="block"><div class="b" style="opacity:.7">⏳ Loading full detail (context, why, questions)…</div></div>';
+  }else if(state==='failed'){
+    detail='<div class="block"><div class="b" style="color:var(--danger)">Couldn’t load full detail right now. <button class="ghost" id="retryDetail" style="padding:3px 8px;font-size:12px">Retry</button></div></div>';
+  }else{
+    detail=`
+    ${c.context?`<div class="block"><div class="h">Context / brief</div><div class="b">${esc(c.context)}</div></div>`:''}
+    ${c.whyA?`<div class="block"><div class="h">Why it works for ${esc(An)}</div><div class="b">${esc(c.whyA)}</div></div>`:''}
+    ${c.whyB?`<div class="block"><div class="h">Why it works for ${esc(Bn)}</div><div class="b">${esc(c.whyB)}</div></div>`:''}
+    <div class="block"><div class="h">Questions ${aDot} → ${bDot}</div><ul>${lis(qAB)}</ul></div>
+    <div class="block"><div class="h">Questions ${bDot} → ${aDot}</div><ul>${lis(qBA)}</ul></div>
+    ${(c.contentIdeas&&c.contentIdeas.length)?`<div class="block"><div class="h">Content ideas</div><ul>${(c.contentIdeas||[]).map(i=>'<li>'+esc(i)+'</li>').join('')}</ul></div>`:''}`;
+  }
+  $('#drawerBody').innerHTML=`
+    <h2>${esc(c.topic)}</h2>
+    <span class="pill">strength ${c.strength||'?'}/10</span>
+    ${c.trendSignal?`<span class="pill">${esc(c.trendSignal)}</span>`:''}
+    <div class="block">
+      <div class="h">Leans</div>
+      <div style="position:relative;height:8px;border-radius:5px;margin:7px 0 7px;background:linear-gradient(90deg,var(--indA),hsl(300,55%,52%),var(--indB))">
+        <div style="position:absolute;top:-3px;left:calc(${lean}% - 6px);width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--panel)"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)"><span>${esc(An)}</span><span>${esc(Bn)}</span></div>
+      <div class="b" style="font-size:12px;margin-top:4px">${esc(leanText)} <span style="opacity:.6">· ${lean}/100</span></div>
+    </div>
+    <div class="block"><div class="h">The talking point</div><div class="b">${esc(c.talkingPoint||'')}</div></div>
+    ${detail}`;
+  if(state==='failed'){ const r=$('#retryDetail'); if(r) r.onclick=()=>loadDetailInto(c); }
+}
+function loadDetailInto(c){
+  const node=nodes.find(n=>n.data===c);
+  renderCard(c,'loading');
+  fetchDetail(c).then(d=>{
+    if(d) Object.assign(c, d);
+    if(selected===node || $('#drawer').classList.contains('open')) renderCard(c, d?'have':'failed');
+  });
+}
+function openDrawer(c){
+  // select the orb — it keeps floating with the others, but the camera locks it to screen-center (see loop)
+  const node=nodes.find(n=>n.data===c);
+  selected=node||null;
+  $('#drawer').classList.add('open');
+  sizeCanvas(); anchor();
+  if(hasDetail(c)) renderCard(c,'have');
+  else loadDetailInto(c);   // structure-only node → fetch full detail on demand
+}
+
+/* ---------- run ---------- */
+function setStatus(html){
+  if(thinking){ thinkCaption=String(html).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(); return; }
+  const s=$('#status');s.style.display='block';s.innerHTML=html;
+}
+
+let EXPECTED_MIN=0;   // minimum acceptable node count for the current request (set in generate)
+async function tryModel(model, key, prompt, timeoutMs){
+  const raw=await callAI(model,key,prompt,timeoutMs);
+  if(!raw) throw new Error('empty response');
+  const parsed=parseAI(raw);
+  const arr=parsed.nodes||parsed.connections;
+  if(!arr||!arr.length) throw new Error('no topics in JSON');
+  // reject lazy results that ignored the layer expansion (e.g. returned only the base topics)
+  if(EXPECTED_MIN && arr.length < EXPECTED_MIN) throw new Error('INCOMPLETE: got '+arr.length+' topics, need ≥'+EXPECTED_MIN);
+  return parsed;
+}
+// fetch full detail for ONE topic on demand (lazy, when its card is opened)
+async function fetchDetail(c){
+  const A=(nodes.find(n=>n.id==='A')||{}).label||'A', B=(nodes.find(n=>n.id==='B')||{}).label||'B';
+  const key=getKey();
+  const node=nodes.find(n=>n.data===c);
+  const parentTopic = (node&&node.parent) ? ((NodeById(node.parent)||{}).label||'') : '';
+  const prompt='You are a content strategist. For ONE content topic that BOTH "'+A+'" (Industry A) and "'+B+'" (Industry B) can make content about, return ONLY JSON (no prose, no code fences).\n'
+    +'Topic: "'+(c.topic||'')+'"'+(parentTopic?(' — a more specific sub-topic of "'+parentTopic+'"'):'')+'.\n'
+    +'{"context":"2-3 sentences to brief a writer (the trend, why these two overlap, what is at stake)","whyA":"1-2 sentences why it works for '+A+'","whyB":"1-2 sentences why it works for '+B+'","trendSignal":"the current trend making it timely, or evergreen","contentIdeas":["idea 1","idea 2","idea 3"],"questionsAB":["q1","q2","q3"],"questionsBA":["q1","q2","q3"]}\n'
+    +'questionsAB = exactly 3 questions '+A+' would ask '+B+'. questionsBA = exactly 3 questions '+B+' would ask '+A+'. Specific, concrete, never generic.';
+  const s=getStats();
+  const FREEONLY=freeOnlyOn();
+  const ordered=[]; const add=m=>{ if(m && ordered.indexOf(m)<0 && !blacklisted(m,s) && (!FREEONLY||m.endsWith(':free'))) ordered.push(m); };
+  add((LS.get('tw_defaultmodel')||'').trim());
+  if(!FREEONLY) (PAID_MODELS.length?PAID_MODELS:PAID_FALLBACK).forEach(add);   // free-only → no paid detail calls
+  weightedOrder((FREE_MODELS.length?FREE_MODELS:FREE_FALLBACK).filter(m=>!blacklisted(m,s)),s).slice(0, FREEONLY?6:3).forEach(add);
+  for(const m of ordered){
+    try{
+      log('info','detail attempt',{model:m,topic:c.topic});
+      const d=parseAI(await callAI(m,key,prompt,25000));
+      if(d && ((d.questionsAB&&d.questionsAB.length)||(d.questionsBA&&d.questionsBA.length)||d.context)){ recordSuccess(m); log('info','detail ok',{model:m}); return d; }
+      throw new Error('no detail fields');
+    }catch(e){ log('warn','detail attempt failed',{model:m,error:e.message}); }
+  }
+  return null;
+}
+// normalise either shape into {nodes:[{id,layer,parent,...}], links:[[id,id]]}
+function toGraph(data){
+  if(data && Array.isArray(data.nodes) && data.nodes.length) return {nodes:data.nodes, links:Array.isArray(data.links)?data.links:[]};
+  if(data && Array.isArray(data.connections)) return {nodes:data.connections.map((c,i)=>Object.assign({id:'t'+i,layer:1,parent:null},c)), links:[]};
+  return {nodes:[],links:[]};
+}
+/* ---------- model reputation: scores, 30-day blacklist, weighted-random selection ---------- */
+const BLACKLIST_DAYS=30, SOFT_COOLDOWN_MIN=10;   // hard fail = 30d; transient (429/402) = 10min
+function getStats(){ try{return JSON.parse(LS.get('tw_modelstats')||'{}')||{};}catch(_){return {};} }
+function saveStats(s){ try{LS.set('tw_modelstats',JSON.stringify(s));}catch(_){} }
+function statOf(s,m){ return s[m]||(s[m]={ok:0,fail:0,bl:0,last:0}); }
+function recordSuccess(m){ const s=getStats(); const e=statOf(s,m); e.ok++; e.bl=0; e.last=Date.now(); saveStats(s); }
+function recordFail(m, hard){ const s=getStats(); const e=statOf(s,m); e.fail++; e.last=Date.now();
+  e.bl = Date.now() + (hard ? BLACKLIST_DAYS*86400000 : SOFT_COOLDOWN_MIN*60000); saveStats(s); }
+function blacklisted(m, s){ const e=(s||getStats())[m]; return !!(e && e.bl && e.bl>Date.now()); }
+// weighted-random order: weight grows with past successes (prefer winners), but selection is random
+function weightedOrder(models, s){
+  const items=models.map(m=>({m, w:1+(statOf(s,m).ok||0)*3}));   // base 1 (exploration) + 3 per past success
+  const out=[];
+  while(items.length){
+    let tot=0; for(const it of items) tot+=it.w;
+    let r=Math.random()*tot, i=0;
+    for(; i<items.length; i++){ r-=items[i].w; if(r<=0) break; }
+    if(i>=items.length) i=items.length-1;
+    out.push(items[i].m); items.splice(i,1);
+  }
+  return out;
+}
+
+// Engine: pick from non-blacklisted models, weighted-random by past success, free tier first (cost),
+// then paid. Hard failures blacklist the model for 30 days; transient busy/credit issues just cool down.
+async function runWithFallback(prompt, key, posts){
+  const s=getStats();
+  const freeAll=(FREE_MODELS.length?FREE_MODELS:FREE_FALLBACK);
+  const paidAll=(PAID_MODELS.length?PAID_MODELS:PAID_FALLBACK);
+  const FREEONLY=freeOnlyOn();
+  let free=freeAll.filter(m=>!blacklisted(m,s));
+  let paid=FREEONLY ? [] : paidAll.filter(m=>!blacklisted(m,s));   // free-only → never use paid (no credits)
+  // if everything got blacklisted, ignore blacklist rather than fail (safety valve)
+  if(!free.length && !paid.length){ free=freeAll.slice(); if(!FREEONLY)paid=paidAll.slice(); log('warn','all models blacklisted — temporarily ignoring blacklist'); }
+  let freeOrder=weightedOrder(free, s).slice(0, FREEONLY?8:5);   // sweep more free models when there's no paid safety net
+  let paidOrder=weightedOrder(paid, s);
+  // user-chosen default model (Settings) is tried FIRST, if set and not blacklisted (and free when free-only)
+  const pref=(LS.get('tw_defaultmodel')||'').trim();
+  const prefUsable = pref && !blacklisted(pref,s) && (!FREEONLY || pref.endsWith(':free'));
+  if(prefUsable){ freeOrder=freeOrder.filter(m=>m!==pref); paidOrder=paidOrder.filter(m=>m!==pref); }
+  log('info','model selection', {freeOnly:FREEONLY, defaultModel:pref||'auto', freeTry:freeOrder, paidTry:paidOrder.slice(0,4), blacklistedCount:Object.keys(s).filter(m=>blacklisted(m,s)).length});
+
+  async function attempt(m, t){
+    setStatus('<div class="big">AI is finding overlaps…</div>'+posts+' real posts gathered');
+    try{
+      log('info','AI attempt', {model:m});
+      const parsed=await tryModel(m,key,prompt,t);
+      const cnt=(parsed.nodes&&parsed.nodes.length)||(parsed.connections&&parsed.connections.length)||0;
+      log('info','AI success', {model:m, topics:cnt});
+      recordSuccess(m);
+      return {data:parsed, used:m};
+    }catch(err){
+      const transient = /429|rate.?limit|402|INCOMPLETE/i.test(err.message);   // congestion / incomplete output — cool down, don't 30-day ban
+      recordFail(m, !transient);                                     // hard fail (bad JSON, timeout, etc.) → 30-day blacklist
+      log(transient?'warn':'error','AI attempt failed', {model:m, error:err.message, blacklisted:!transient});
+      return null;
+    }
+  }
+
+  // scale timeout with how many topics we're asking for (big trees take longer to write)
+  const big=Math.min(120000, 22000 + (EXPECTED_MIN||3)*1300);
+  const freeTmo=Math.min(big, 18000);   // free models mostly fast-fail; don't let one stall the whole run
+  log('info','attempt timeouts', {bigMs:big, freeMs:freeTmo, expectedMin:EXPECTED_MIN});
+  if(prefUsable){ const r=await attempt(pref, FREEONLY?freeTmo:big); if(r) return r; }
+  for(const m of freeOrder){ const r=await attempt(m, freeTmo); if(r) return r; }
+  for(const m of paidOrder){ const r=await attempt(m, big); if(r) return r; }
+  // congestion retry: wait, then re-sweep (free pool when free-only, else the paid backups)
+  setStatus('<div class="big">Free models are busy — retrying…</div>'+posts+' real posts gathered');
+  await new Promise(r=>setTimeout(r,9000));
+  const retryList = FREEONLY ? freeOrder : paidOrder;
+  for(const m of retryList){ const r=await attempt(m, FREEONLY?big:big); if(r) return r; }
+  return null;
+}
+
+async function generate(){
+  const A=$('#indA').value.trim(), B=$('#indB').value.trim();
+  const n=Math.max(3,Math.min(20,+$('#numConns').value||6));
+  const layers=Math.max(1,Math.min(5,+$('#numLayers').value||1));
+  const key=getKey();
+  if(!A||!B){alert('Enter both industries (left and right).');return;}
+  if(!key){
+    setStatus('<div class="big">Add a free API key to generate</div>Open <b>⚙</b> and paste a free OpenRouter key (get one at <a class="link" href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>).<br>Or just hit <b>Sample</b> to explore with no key.');
+    $('#settings').classList.add('open'); return;
+  }
+  LS.set('tw_indA',A);LS.set('tw_indB',B);
+  log('info','=== GENERATE START ===', {A,B,topics:n,layers, usingBuiltInKey: key===DEFAULT_KEY});
+  $('#genBtn').disabled=true;
+  startThinking(A,B);   // clear the board and show the loading animation
+  try{
+    let tA=[],tB=[];
+    if($('#useFree').checked){
+      setStatus('<div class="big">Pulling free trend data…</div>Hacker News + Wikipedia for both industries');
+      [tA,tB]=await Promise.all([gatherTrends(A),gatherTrends(B)]);
+    } else { log('info','free trend data disabled by user'); }
+
+    const tc=treeCounts(n,layers);
+    EXPECTED_MIN = Math.max(n, Math.ceil(tc.target*0.6));   // reject results that ignored the branching
+    const prompt=buildPrompt(A,B,$('#ctxA').value,$('#ctxB').value,n,layers,tA,tB);
+    log('info','prompt built', {chars:prompt.length, layers, expectedTopics:tc.target, perLayer:tc.counts, minAccepted:EXPECTED_MIN});
+
+    const result = await runWithFallback(prompt, key, tA.length+tB.length);
+    if(!result) throw new Error(freeOnlyOn()
+      ? 'The free model pool is fully busy right now (Free-only mode is on, so there\'s no paid backup). Wait a minute and hit Generate again — or open ⚙ and uncheck "Free models only" to let the cheap paid backup finish the job (~0.1¢).'
+      : 'Couldn\'t reach any model. Likely a network blip or brief OpenRouter outage — check your connection and retry. Open 📋 Log for details.');
+    const graph=toGraph(result.data);
+    buildGraph(A,B,graph);
+    log('info','=== GENERATE OK ===', {used:result.used, nodes:graph.nodes.length, links:graph.links.length});
+  }catch(err){
+    log('error','=== GENERATE FAILED ===', err.message);
+    thinking=false;   // stop the animation so the error is visible
+    setStatus('<div class="big" style="color:var(--danger)">Couldn’t build the web</div>'+esc(err.message)+'<br><br>Hit <b>Sample</b> to see the UI, or open <b>📋 Log</b>.');
+  }finally{ $('#genBtn').disabled=false; }
+}
+
+/* ---------- sample data (works with no key) ---------- */
+const SAMPLE={connections:[
+ {topic:"Morning rituals",lean:45,strength:9,talkingPoint:"How a deliberate morning routine sets the tone for performance and focus.",context:"'Morning routine' content is one of the most durable lifestyle genres on social — it sits right where both brands live. Coffee is the single most common morning anchor; a workout is the other. Pairing them taps a huge, evergreen search and engagement base, and lets each brand borrow the other's audience at the exact moment of day they're already thinking about both.",whyA:"Coffee is the anchor of millions of morning routines, so the roaster owns the most-shared moment of the day. It positions the brand as part of a healthy, intentional lifestyle rather than just a beverage.",whyB:"A morning workout is the classic ritual; pairing it with great coffee makes the studio feel like part of a complete routine and gives members a reason to talk about the brand beyond the gym.",trendSignal:"'5am club' & routine content trending",contentIdeas:["Reel: barista + trainer swap morning routines","Blog: caffeine timing around workouts","Bundle: pre-workout cold brew"],questions:["What does the first hour of your day look like?","Coffee before or after your workout — and why?","What's one tiny morning habit that changed your day?","If you could automate one part of your morning, what would it be?"]},
+ {topic:"Clean energy & focus",lean:35,strength:8,talkingPoint:"Natural, sustained energy without the crash — fuel for body and mind.",context:"The 'no-crash energy' conversation has moved mainstream as people sour on sugary energy drinks and pre-workouts. Coffee owns the 'clean stimulant' story; fitness owns the 'energy to perform' story. The overlap is a credible, science-flavored angle both can run without overclaiming.",whyA:"Single-origin coffee becomes a 'clean energy' story, differentiating from sodas and energy drinks and appealing to health-conscious buyers.",whyB:"Members want energy to train without sugary pre-workouts; the studio can guide them to better fuel choices and own that trust.",trendSignal:"'no crash energy' rising",contentIdeas:["Myth-bust: pre-workout vs coffee","Caffeine + L-theanine explainer"],questions:["What's your go-to energy source before a workout?","Have you ever crashed mid-afternoon — what caused it?","Natural vs supplement energy: where do you land?"]},
+ {topic:"Local community",lean:55,strength:8,talkingPoint:"Building real-life community around a shared healthy habit.",context:"Run-club-plus-coffee meetups have exploded as a real-world antidote to digital fatigue. Both businesses are physical 'third places,' so community is a shared growth engine — events cross-pollinate customers and generate authentic user content.",whyA:"Cafés thrive as third places and natural hosts for run-club meetups, driving foot traffic and loyalty.",whyB:"Studios live or die on community and retention; co-hosted events deepen belonging.",trendSignal:"run-club + coffee meetups everywhere",contentIdeas:["Co-host a run-club → coffee event","Member spotlight series"],questions:["Where do you feel most 'part of something' locally?","Would you join a run-club that ended at a café?","Who's one person your community wouldn't be the same without?"]},
+ {topic:"Recovery & hydration",lean:65,strength:7,talkingPoint:"What you drink before and after matters as much as the session.",context:"The electrolyte/recovery craze gives both brands a timely hook. Fitness owns recovery programming; coffee/cold-brew brands can extend into recovery and hydration drinks. Together they cover the full 'before and after' of a session.",whyA:"Cold brew, electrolytes and recovery drinks open new product angles for the roaster.",whyB:"Post-workout recovery is core programming and a natural education topic for the studio.",trendSignal:"electrolyte craze",contentIdeas:["Recovery drink recipe","Hydration timing guide"],questions:["What's your post-workout ritual?","Do you actually track hydration — or wing it?"]},
+ {topic:"Sustainability",lean:50,strength:6,talkingPoint:"Conscious choices — from beans to gear — that customers feel good about.",context:"Sustainability is an evergreen values-driver for both audiences. Roasters have sourcing and packaging stories; studios have gear and waste stories. A shared 'conscious choices' campaign builds trust across both customer bases.",whyA:"Ethically sourced beans and compostable cups appeal to values-driven buyers.",whyB:"Eco gym gear and low-waste studio practices resonate with the same crowd.",trendSignal:"sustainability evergreen",contentIdeas:["Behind-the-scenes sourcing","Recycle-your-gear drive"],questions:["What's one sustainable swap you actually stuck with?","Does a brand's ethics change what you buy?"]},
+ {topic:"Habit stacking",lean:48,strength:7,talkingPoint:"Linking small habits so they actually stick.",context:"'Atomic Habits' made habit-stacking a household concept. Coffee is a perfect reward cue; a workout is a keystone habit. Both brands can teach the framework and position their product inside the loop.",whyA:"Coffee works as the reward cue that reinforces a new habit.",whyB:"The workout is the keystone habit everything else stacks onto.",trendSignal:"Atomic Habits evergreen",contentIdeas:["Habit-stack template","30-day challenge"],questions:["What habit are you trying to build right now?","What's your reward after a workout?"]},
+ {topic:"Affordable luxury",lean:42,strength:6,talkingPoint:"Small daily treats that feel premium but are accessible.",context:"The 'little treat' economy reframes small spends as self-care. A $5 pour-over and a boutique class both sell affordable luxury — a shared positioning against cheaper, lower-experience alternatives.",whyA:"A $5 pour-over is everyday luxury that's easy to justify.",whyB:"A boutique class beats a big-box gym on experience, not price.",trendSignal:"'little treat' culture",contentIdeas:["'Treat yourself' bundle","Value-vs-experience post"],questions:["What's your daily 'little treat'?","When is spending more actually worth it?"]},
+ {topic:"Founder stories",lean:50,strength:6,talkingPoint:"The human behind the brand builds trust and loyalty.",context:"Founder-led content consistently outperforms faceless brand posts. Both a roaster and a studio owner have origin stories that humanize the brand and build parasocial loyalty — a shared, low-cost content pillar.",whyA:"Why you started roasting humanizes the brand and builds trust.",whyB:"Why you opened the studio creates connection beyond the workout.",trendSignal:"founder-led brand content",contentIdeas:["Origin-story Reel","Day-in-the-life"],questions:["What made you start your business?","What's a failure that taught you the most?"]}
+]};
+// build a layered sample graph so the layers/zoom feature is demoable with no key
+function qset(topic, asker, target){
+  return [
+    'What does “'+topic+'” actually look like day-to-day for '+target+'?',
+    'Where does '+target+' see the biggest opportunity in “'+topic+'”?',
+    'How could '+asker+' and '+target+' collaborate around “'+topic+'”?'
+  ];
+}
+function sampleGraph(n, layers, A, B){
+  const base=SAMPLE.connections.slice(0,Math.max(3,Math.min(20,n)));
+  const nodes=[], links=[];
+  base.forEach((c,i)=>nodes.push(Object.assign({id:'b'+i,layer:1,parent:null,
+    questionsAB:qset(c.topic,A,B), questionsBA:qset(c.topic,B,A)},c)));
+  const subWords=['niche','tactics','myths','data','beginners','pro tips','case study','tools','budget','trends'];
+  let prev=base.map((c,i)=>({id:'b'+i,topic:c.topic,lean:c.lean,strength:c.strength}));
+  for(let L=2; L<=layers; L++){
+    const next=[];
+    prev.forEach((p,pi)=>{
+      for(let k=0;k<n && nodes.length<90;k++){   // exactly n children per node (exponential)
+        const id=p.id+'_'+L+k;
+        const w=subWords[(pi*n+k+L)%subWords.length];
+        const lean=Math.max(0,Math.min(100,(p.lean||50)+Math.round((k/Math.max(1,n-1)-0.5)*40)));
+        const strength=Math.max(2,(p.strength||6)-(L-1));
+        const topic=p.topic.split(' ')[0]+' · '+w;
+        nodes.push({id,layer:L,parent:p.id,topic,lean,strength,
+          talkingPoint:'A more specific angle on “'+p.topic+'” ('+w+').',
+          context:'A narrower sub-topic of “'+p.topic+'”, zooming in on '+w+' where '+A+' and '+B+' overlap.',
+          questionsAB:qset(topic,A,B), questionsBA:qset(topic,B,A)});
+        next.push({id,topic,lean,strength});
+      }
+    });
+    prev=next;
+  }
+  const deep=nodes.filter(x=>x.layer===layers);
+  for(let i=0;i+1<deep.length && i<6;i+=2) links.push([deep[i].id, deep[i+1].id]);
+  return {nodes,links};
+}
+$('#sampleBtn').onclick=()=>{
+  const A=$('#indA').value.trim()||'Craft coffee roasters';
+  const B=$('#indB').value.trim()||'Home fitness studios';
+  $('#indA').value=A;$('#indB').value=B;
+  const n=Math.max(3,Math.min(20,+$('#numConns').value||6));
+  const layers=Math.max(1,Math.min(5,+$('#numLayers').value||1));
+  buildGraph(A,B,sampleGraph(n,layers,A,B));
+};
+$('#fitBtn').onclick=fitView;
+$('#genBtn').onclick=generate;
+
+function updateCountHint(){
+  const n=Math.max(3,Math.min(20,+$('#numConns').value||6));
+  const L=Math.max(1,Math.min(5,+$('#numLayers').value||1));
+  const tc=treeCounts(n,L);
+  $('#countHint').textContent = '= '+tc.target+' topics';
+}
+$('#numConns').oninput=updateCountHint; $('#numLayers').oninput=updateCountHint;
+updateCountHint();
+
+sizeCanvas();loop();loadFreeModels();
+</script>
+</body>
+</html>
