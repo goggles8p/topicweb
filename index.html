@@ -113,11 +113,11 @@
     <h1>🕸️ Topic Web</h1>
     <span class="tag">cross-industry talking points</span>
     <div class="grow"></div>
-    <div class="ctrl">topics
-      <input type="number" id="numConns" min="3" max="20" value="6">
+    <div class="ctrl">key topics
+      <input type="number" id="numConns" min="2" max="10" value="3" title="how many main topics between the two industries">
     </div>
     <div class="ctrl">layers
-      <input type="number" id="numLayers" min="1" max="5" value="1" title="depth: each topic branches into 'topics' sub-topics per layer (exponential)">
+      <input type="number" id="numLayers" min="1" max="4" value="1" title="depth: each topic branches into 'key topics' deeper sub-topics per layer">
     </div>
     <span class="ctrl" id="countHint" style="opacity:.65;display:inline-block;min-width:74px"></span>
     <button id="genBtn">⚡ Generate</button>
@@ -1005,61 +1005,71 @@ function weightedOrder(models, s){
   return out;
 }
 
-// Engine: pick from non-blacklisted models, weighted-random by past success, free tier first (cost),
-// then paid. Hard failures blacklist the model for 30 days; transient busy/credit issues just cool down.
-async function runWithFallback(prompt, key, posts){
+// Generic JSON-from-AI call with model fallback (free-first / free-only aware, reputation-weighted, retry).
+// opts: {validate(parsed)->bool, caption, items (≈ how many things asked for → scales timeout), posts}
+async function aiJSON(prompt, key, opts){
+  opts=opts||{};
+  const validate=opts.validate||(()=>true), caption=opts.caption||'AI is working…', items=opts.items||6, posts=opts.posts||0;
   const s=getStats();
-  const freeAll=(FREE_MODELS.length?FREE_MODELS:FREE_FALLBACK);
-  const paidAll=(PAID_MODELS.length?PAID_MODELS:PAID_FALLBACK);
   const FREEONLY=freeOnlyOn();
+  const freeAll=(FREE_MODELS.length?FREE_MODELS:FREE_FALLBACK), paidAll=(PAID_MODELS.length?PAID_MODELS:PAID_FALLBACK);
   let free=freeAll.filter(m=>!blacklisted(m,s));
-  let paid=FREEONLY ? [] : paidAll.filter(m=>!blacklisted(m,s));   // free-only → never use paid (no credits)
-  // if everything got blacklisted, ignore blacklist rather than fail (safety valve)
-  if(!free.length && !paid.length){ free=freeAll.slice(); if(!FREEONLY)paid=paidAll.slice(); log('warn','all models blacklisted — temporarily ignoring blacklist'); }
-  let freeOrder=weightedOrder(free, s).slice(0, FREEONLY?8:5);   // sweep more free models when there's no paid safety net
+  let paid=FREEONLY ? [] : paidAll.filter(m=>!blacklisted(m,s));
+  if(!free.length && !paid.length){ free=freeAll.slice(); if(!FREEONLY)paid=paidAll.slice(); }
+  let freeOrder=weightedOrder(free, s).slice(0, FREEONLY?8:5);
   let paidOrder=weightedOrder(paid, s);
-  // user-chosen default model (Settings) is tried FIRST, if set and not blacklisted (and free when free-only)
   const pref=(LS.get('tw_defaultmodel')||'').trim();
   const prefUsable = pref && !blacklisted(pref,s) && (!FREEONLY || pref.endsWith(':free'));
   if(prefUsable){ freeOrder=freeOrder.filter(m=>m!==pref); paidOrder=paidOrder.filter(m=>m!==pref); }
-  log('info','model selection', {freeOnly:FREEONLY, defaultModel:pref||'auto', freeTry:freeOrder, paidTry:paidOrder.slice(0,4), blacklistedCount:Object.keys(s).filter(m=>blacklisted(m,s)).length});
-
+  const big=Math.min(120000, 20000 + items*1100), freeTmo=Math.min(big, 18000);
+  log('info','aiJSON selection', {caption, freeOnly:FREEONLY, items, bigMs:big, freeTry:freeOrder.slice(0,4), paidTry:paidOrder.slice(0,3)});
   async function attempt(m, t){
-    setStatus('<div class="big">AI is finding overlaps…</div>'+posts+' real posts gathered');
+    setStatus('<div class="big">'+caption+'</div>'+(posts?posts+' real posts gathered':''));
     try{
-      log('info','AI attempt', {model:m});
-      const parsed=await tryModel(m,key,prompt,t);
-      const cnt=(parsed.nodes&&parsed.nodes.length)||(parsed.connections&&parsed.connections.length)||0;
-      log('info','AI success', {model:m, topics:cnt});
-      recordSuccess(m);
-      return {data:parsed, used:m};
+      log('info','AI attempt', {model:m, caption});
+      const raw=await callAI(m,key,prompt,t); if(!raw) throw new Error('empty response');
+      const parsed=parseAI(raw);
+      if(!validate(parsed)) throw new Error('INCOMPLETE: validation failed');
+      recordSuccess(m); log('info','AI ok', {model:m}); return parsed;
     }catch(err){
-      const transient = /429|rate.?limit|402|INCOMPLETE/i.test(err.message);   // congestion / incomplete output — cool down, don't 30-day ban
-      recordFail(m, !transient);                                     // hard fail (bad JSON, timeout, etc.) → 30-day blacklist
+      const transient = /429|rate.?limit|402|INCOMPLETE/i.test(err.message);
+      recordFail(m, !transient);
       log(transient?'warn':'error','AI attempt failed', {model:m, error:err.message, blacklisted:!transient});
       return null;
     }
   }
-
-  // scale timeout with how many topics we're asking for (big trees take longer to write)
-  const big=Math.min(120000, 22000 + (EXPECTED_MIN||3)*1300);
-  const freeTmo=Math.min(big, 18000);   // free models mostly fast-fail; don't let one stall the whole run
-  log('info','attempt timeouts', {bigMs:big, freeMs:freeTmo, expectedMin:EXPECTED_MIN});
   if(prefUsable){ const r=await attempt(pref, FREEONLY?freeTmo:big); if(r) return r; }
   for(const m of freeOrder){ const r=await attempt(m, freeTmo); if(r) return r; }
   for(const m of paidOrder){ const r=await attempt(m, big); if(r) return r; }
-  // congestion retry: wait, then re-sweep (free pool when free-only, else the paid backups)
-  setStatus('<div class="big">Free models are busy — retrying…</div>'+posts+' real posts gathered');
+  setStatus('<div class="big">Models busy — retrying…</div>'+(posts?posts+' real posts gathered':''));
   await new Promise(r=>setTimeout(r,9000));
-  const retryList = FREEONLY ? freeOrder : paidOrder;
-  for(const m of retryList){ const r=await attempt(m, FREEONLY?big:big); if(r) return r; }
+  for(const m of (FREEONLY?freeOrder:paidOrder)){ const r=await attempt(m, big); if(r) return r; }
   return null;
+}
+// prompt for the KEY topics (layer 1)
+function keyTopicsPrompt(A,B,ctxA,ctxB,n,trendsA,trendsB){
+  const tA=(trendsA||[]).map(t=>'- '+t.title).slice(0,8).join('\n')||'(none)';
+  const tB=(trendsB||[]).map(t=>'- '+t.title).slice(0,8).join('\n')||'(none)';
+  return `You are a content strategist. Give EXACTLY ${n} KEY content topics that BOTH "${A}" (Industry A) and "${B}" (Industry B) can authentically make content about — the biggest, most useful overlaps between them.
+${ctxA?'A context: '+ctxA+'\n':''}${ctxB?'B context: '+ctxB+'\n':''}Recent real chatter for grounding:\n[A]\n${tA}\n[B]\n${tB}
+Return ONLY JSON (no prose, no code fences): {"topics":[{"topic":"2-5 word label","lean":0-100,"strength":1-10,"talkingPoint":"one punchy sentence"}]}
+Exactly ${n} topics. lean: 0 = almost entirely ${A}, 100 = almost entirely ${B}, 50 = equal — vary it. strength 1-10. Be specific and concrete.`;
+}
+// prompt to expand a layer: for EACH parent, exactly n deeper sub-topics of THAT parent
+function expandPrompt(A,B,n,parents){
+  const list=parents.map((p,i)=>(i+1)+') [id='+p.id+'] '+p.topic).join('\n');
+  return `You are a content strategist. Below are ${parents.length} parent content topics (each an overlap between "${A}" and "${B}").
+For EACH parent, give EXACTLY ${n} sub-topics that go DEEPER and MORE SPECIFIC into THAT parent topic — a narrower facet/angle of it (not a new unrelated topic), still relevant to both industries.
+Parents:
+${list}
+Return ONLY JSON (no prose, no code fences): {"children":[{"parent":"<the id shown above>","topic":"2-5 word label","lean":0-100,"strength":1-10,"talkingPoint":"one sentence"}]}
+EXACTLY ${n} children per parent (${parents.length*n} total). "parent" must be one of the ids shown. Each child must clearly be a sub-facet of its parent (e.g. parent "Skating" → "Skate maintenance", "Trick progression", "Skate fashion"). Be specific.`;
 }
 
 async function generate(){
   const A=$('#indA').value.trim(), B=$('#indB').value.trim();
-  const n=Math.max(3,Math.min(20,+$('#numConns').value||6));
-  const layers=Math.max(1,Math.min(5,+$('#numLayers').value||1));
+  const n=Math.max(2,Math.min(10,+$('#numConns').value||3));
+  const layers=Math.max(1,Math.min(4,+$('#numLayers').value||1));
   const key=getKey();
   if(!A||!B){alert('Enter both industries (left and right).');return;}
   if(!key){
@@ -1077,18 +1087,37 @@ async function generate(){
       [tA,tB]=await Promise.all([gatherTrends(A),gatherTrends(B)]);
     } else { log('info','free trend data disabled by user'); }
 
-    const tc=treeCounts(n,layers);
-    EXPECTED_MIN = Math.max(n, Math.ceil(tc.target*0.6));   // reject results that ignored the branching
-    const prompt=buildPrompt(A,B,$('#ctxA').value,$('#ctxB').value,n,layers,tA,tB);
-    log('info','prompt built', {chars:prompt.length, layers, expectedTopics:tc.target, perLayer:tc.counts, minAccepted:EXPECTED_MIN});
+    const posts=tA.length+tB.length;
+    const busyMsg = freeOnlyOn()
+      ? 'The free model pool is fully busy right now (Free-only mode is on). Wait a minute and retry — or open ⚙ and uncheck "Free models only" for the cheap paid backup.'
+      : 'Couldn\'t reach any model. Likely a network blip or brief OpenRouter outage — retry, or open 📋 Log.';
 
-    const result = await runWithFallback(prompt, key, tA.length+tB.length);
-    if(!result) throw new Error(freeOnlyOn()
-      ? 'The free model pool is fully busy right now (Free-only mode is on, so there\'s no paid backup). Wait a minute and hit Generate again — or open ⚙ and uncheck "Free models only" to let the cheap paid backup finish the job (~0.1¢).'
-      : 'Couldn\'t reach any model. Likely a network blip or brief OpenRouter outage — check your connection and retry. Open 📋 Log for details.');
-    const graph=toGraph(result.data);
-    buildGraph(A,B,graph);
-    log('info','=== GENERATE OK ===', {used:result.used, nodes:graph.nodes.length, links:graph.links.length});
+    // ---- Layer 1: the KEY topics ----
+    const l1 = await aiJSON(keyTopicsPrompt(A,B,$('#ctxA').value,$('#ctxB').value,n,tA,tB), key,
+      {caption:'Finding the key topics…', items:n, posts, validate:p=>Array.isArray(p.topics)&&p.topics.length>=n});
+    if(!l1) throw new Error(busyMsg);
+    let prev = l1.topics.slice(0,n).map((t,i)=>({id:'k'+i, layer:1, parent:null, topic:t.topic, lean:t.lean, strength:t.strength, talkingPoint:t.talkingPoint}));
+    const gnodes = prev.slice();
+
+    // ---- Each deeper layer: exactly n children per node, diving deeper into that node ----
+    for(let L=2; L<=layers; L++){
+      const exp = await aiJSON(expandPrompt(A,B,n,prev), key,
+        {caption:'Branching layer '+L+' of '+layers+'…', items:prev.length*n, posts,
+         validate:p=>Array.isArray(p.children)&&p.children.length>=Math.ceil(prev.length*n*0.5)});
+      if(!exp) throw new Error(busyMsg);
+      const byParent={}; (exp.children||[]).forEach(c=>{ const pid=String(c.parent||''); (byParent[pid]=byParent[pid]||[]).push(c); });
+      const next=[];
+      prev.forEach(p=>{
+        let kids=(byParent[p.id]||[]).slice(0,n);
+        while(kids.length<n){ const k=kids.length+1; kids.push({topic:p.topic+' · facet '+k, lean:p.lean, strength:Math.max(2,(+p.strength||5)-1), talkingPoint:'A deeper angle on '+p.topic}); }  // pad to keep the tree exact
+        kids.forEach((c,j)=>{ const node={id:p.id+'_'+j, layer:L, parent:p.id, topic:c.topic, lean:c.lean, strength:c.strength, talkingPoint:c.talkingPoint}; next.push(node); gnodes.push(node); });
+      });
+      prev=next;
+    }
+
+    buildGraph(A,B,{nodes:gnodes, links:[]});
+    const byLayer={}; gnodes.forEach(g=>byLayer[g.layer]=(byLayer[g.layer]||0)+1);
+    log('info','=== GENERATE OK ===', {total:gnodes.length, byLayer});
   }catch(err){
     log('error','=== GENERATE FAILED ===', err.message);
     thinking=false;   // stop the animation so the error is visible
@@ -1148,18 +1177,18 @@ $('#sampleBtn').onclick=()=>{
   const A=$('#indA').value.trim()||'Craft coffee roasters';
   const B=$('#indB').value.trim()||'Home fitness studios';
   $('#indA').value=A;$('#indB').value=B;
-  const n=Math.max(3,Math.min(20,+$('#numConns').value||6));
-  const layers=Math.max(1,Math.min(5,+$('#numLayers').value||1));
+  const n=Math.max(2,Math.min(10,+$('#numConns').value||3));
+  const layers=Math.max(1,Math.min(4,+$('#numLayers').value||1));
   buildGraph(A,B,sampleGraph(n,layers,A,B));
 };
 $('#fitBtn').onclick=fitView;
 $('#genBtn').onclick=generate;
 
 function updateCountHint(){
-  const n=Math.max(3,Math.min(20,+$('#numConns').value||6));
-  const L=Math.max(1,Math.min(5,+$('#numLayers').value||1));
-  const tc=treeCounts(n,L);
-  $('#countHint').textContent = '= '+tc.target+' topics';
+  const n=Math.max(2,Math.min(10,+$('#numConns').value||3));
+  const L=Math.max(1,Math.min(4,+$('#numLayers').value||1));
+  let total=0,c=n; for(let i=0;i<L;i++){ total+=c; c*=n; }   // n + n^2 + … + n^L
+  $('#countHint').textContent = '= '+total+' topics';
 }
 $('#numConns').oninput=updateCountHint; $('#numLayers').oninput=updateCountHint;
 updateCountHint();
