@@ -1187,8 +1187,7 @@ $('#genBtn').onclick=generate;
 function updateCountHint(){
   const n=Math.max(2,Math.min(10,+$('#numConns').value||3));
   const L=Math.max(1,Math.min(4,+$('#numLayers').value||1));
-  let total=0,c=n; for(let i=0;i<L;i++){ total+=c; c*=n; }   // n + n^2 + … + n^L
-  $('#countHint').textContent = '= '+total+' topics';
+  $('#countHint').textContent = '= '+Math.pow(n,L)+' topics';   // key topics ^ layers (the deepest ring)
 }
 $('#numConns').oninput=updateCountHint; $('#numLayers').oninput=updateCountHint;
 updateCountHint();
