@@ -2,7 +2,7 @@
 
 Type **two industries** and Topic Web builds an interactive web of content topics that *both* can authentically talk about — color-coded by which industry each leans toward, sized by opportunity, and expandable into layers of sub-topics.
 
-**Live demo:** _(GitHub Pages link appears here after publishing)_
+**Live demo:** https://goggles8p.github.io/topicweb/
 
 ## How to use
 1. Type **Industry A** (left) and **Industry B** (right) — free-form, anything.
